@@ -1,6 +1,6 @@
-% !TEX root = ../main.tex
 %%
-% BIThesis 本科毕业设计论文模板
+% BIThesis 本科毕业设计论文模板 —— 使用 XeLaTeX 编译 The BIThesis Template for Undergraduate Thesis
+% This file has no copyright assigned and is placed in the Public Domain.
 %%
 
 % 第三章节
@@ -471,15 +471,3 @@ ImpactGraphSymbol = {
 
 结构化的输出设计确保了模块间的松耦合与独立演进能力。
 
-\section{本章小结}
-本章详细阐述了基于代码变更的影响分析方法的设计与实现。本章的核心贡献可归纳为：
-
-\begin{enumerate}
-    \item \textbf{结构化中间表示框架}：提出了SCR、CGR、SUR、SIR四层结构化中间表示模型，采用LangGraph多Agent工作流实现，其中ingest\_change一步内完成Unified Diff解析、符号级变更分析与变更解构图构建。
-    
-    \item \textbf{种子驱动的启发式传播}：设计了基于impact\_seeds与semantic\_tags的传播机制，通过seed\_occurrence\_index实现跨符号关联，priority\_score公式综合风险、变更倍数、中心性、引用数与集成风险等因素进行优先级量化。
-    
-    \item \textbf{测试导向的语义分析}：将语义分析结果与测试关注点显式映射，设计了四类语义单元（config/exception/api/data\_processing）与相应的测试策略派生规则。
-    
-    \item \textbf{多维风险量化体系}：设计了risk\_score与priority\_score构成的双层评分体系，综合考虑变更意图、语义类型、传播深度、符号引用数等维度，支持P0/P1/P2三级优先级划分。
-\end{enumerate}

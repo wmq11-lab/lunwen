@@ -18,7 +18,7 @@
   cover = {
     % 封面需要「北京理工大学」字样图片，如无必要请勿修改该项。
     headerImage = images/header.pdf,
-    % 封面标题细黑体：项目根目录下的华文细黑（勿加 ./ 前缀，否则 fontspec 会误解析）
+    % 封面标题需要“华文细黑”，如无必要请勿修改该项。
     xiheiFont = STXIHEI.TTF,
     % 可用以下参数自定义封面日期。
     % date = 1955年11月,
@@ -97,8 +97,11 @@
   isbn=false,
 ]{biblatex}
 
-% 参考文献数据库（仅列出实际存在的文件，否则 biber 会报错）
+% 参考文献引用文件位于 misc/ref.bib
 \addbibresource{misc/ref.bib}
+
+% gb7714-2015 中 \cite 默认为上标式标注；若需正文行内方括号序号 [1]，与 \parencite 一致：
+\AtBeginDocument{\let\cite\parencite}
 
 % 若要按计算机学院要求，添加“北京理工大学”水印，请参考
 % https://bithesis.bitnp.net/faq/watermark.html
@@ -133,15 +136,15 @@
 \input{chapters/3_chapter3.tex}
 \input{chapters/4_chapter4.tex}
 \input{chapters/5_chapter5.tex}
-\input{chapters/6_chapter6.tex}
 
 % 后置内容
 \backmatter
 
 % 结论：在相应 TeX 文件撰写
 \input{misc/2_conclusion.tex}
-% 参考文献：添加至 misc/ref.bib，正文用 \cite{…}（biblatex，勿在此处使用 \bibliography）。
-% 如无特殊需要，无需改动 misc/3_reference.tex。
+% 参考文献：
+% 添加文献时，请按 BibTeX 格式添加至 misc/ref.bib，并在正文所需位置使用 \cite{…} 引用。
+% 如无特殊需要，无需改动相应 TeX 文件。
 \input{misc/3_reference.tex}
 % 附录：在相应 TeX 文件撰写；不需要时可删除
 \input{misc/4_appendix.tex}

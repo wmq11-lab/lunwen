@@ -1,30 +1,33 @@
-% !TEX root = ../main.tex
 %%
-% BIThesis 本科毕业设计论文模板 —— 使用 XeLaTeX 编译
+% BIThesis 本科毕业设计论文模板 —— 使用 XeLaTeX 编译 The BIThesis Template for Undergraduate Thesis
+% This file has no copyright assigned and is placed in the Public Domain.
 %%
 
 % 中英文摘要章节
 \begin{abstract}
-随着软件系统规模与复杂度持续增长，软件质量保障面临严峻挑战。传统软件测试高度依赖人工经验，存在效率低、覆盖不足、成本高等问题。如何提高测试效率、保证测试质量，已成为软件工程领域的重要研究问题。
+% 中文摘要正文从这里开始
+回归测试是保障软件迭代质量的关键环节，然而现有方法在变更感知精准度、测试生成效率与用例质量之间难以取得平衡。传统基于搜索或变异的自动化测试工具缺乏对代码变更语义的理解，生成的测试用例缺乏针对性；单Agent方案虽能利用大语言模型生成高质量用例，但存在用例冗余、缺乏质量闭环等问题。
 
-近年来，敏捷开发与持续集成模式得到广泛应用，代码变更更加频繁，回归测试成为保证软件质量的关键环节。传统的回归测试主要依赖人工编写测试用例，难以快速响应频繁的代码变更。
+本文提出并实现了一个面向代码变更的多智能体回归测试用例生成系统。该系统以LangGraph为编排框架，协调12个专业化Agent节点，形成"规则为主、LLM为辅"的混合架构：代码变更解析Agent以Tree-sitter和启发式规则提取变更实体与符号级分析；影响分析Agent基于变更解构图（file/symbol/seed/focus四类节点）与语义单元驱动的seed/tag关联实现精准影响传播推理；测试生成Agent通过compile校验—LLM重试—占位兜底三重机制保障用例可执行性；测试修复Agent以语法/导入/已知模式修复形成闭环。各模块通过可配置开关灵活启用，支持效率与效果偏好调整。
 
-代码变更影响分析是回归测试的核心环节，其目标在于识别代码变更可能影响的系统范围，从而指导测试资源的分配。传统方法仅能识别行级变化，难以反映代码的真实语义与影响范围。
+在typer项目上的实验结果表明，本文方法在变更感知场景下实现了93\%--96\%的测试压缩率和78\%--96\%的执行时间缩减率，Bug检测率达90\%而基线方法均为0\%。覆盖率效率比（每用例覆盖率贡献）是Single-Agent的1.33--1.85倍，utils模块上时间效率比达2.2倍。消融实验验证了各组件的不可替代性：移除LLM使变更覆盖率下降56.8\%，移除TestRepair使通过率从72.63\%骤降至37.86\%。
 
-大语言模型在代码理解、自然语言处理等方面展现出强大能力，多智能体系统通过多个Agent的协同决策，能够处理复杂多步骤的任务。本研究将大语言模型与多智能体系统相结合，提出基于多智能体的软件测试自动化方法，实现从代码变更到测试用例生成的端到端自动化。
-
-本研究的主要贡献包括：（1）提出基于结构化中间表示的代码变更影响分析方法；（2）设计多智能体协同测试生成框架；（3）构建规则约束与LLM生成相结合的混合测试策略；（4）实现基于TestRepairAgent的测试修复机制。
+\textbf{关键词：}回归测试；多智能体系统；代码变更影响分析；大语言模型；测试用例自动生成
 
 \end{abstract}
 
+% 如需手动控制换行连字符位置，可写 aa\-bb，详见
+% https://bithesis.bitnp.net/faq/hyphen.html
+
 % 英文摘要章节
 \begin{abstractEn}
-With the continuous growth of software system scale and complexity, software quality assurance faces severe challenges. Traditional software testing heavily relies on manual experience, resulting in low efficiency, insufficient coverage, and high costs.
+% 英文摘要正文从这里开始
+Regression testing is a critical环节 in safeguarding software quality during iterative development. However, existing methods struggle to balance change-aware precision, test generation efficiency, and test case quality. Traditional search-based or mutation-based automated testing tools lack understanding of code change semantics, producing tests with insufficient targeting. Single-agent approaches leverage large language models (LLMs) to generate high-quality cases but suffer from case redundancy and the absence of a quality assurance loop.
 
-In recent years, agile development and continuous integration have been widely adopted, making code changes more frequent and regression testing critical for software quality. Traditional regression testing mainly depends on manually编写测试用例，making it difficult to respond quickly to frequent code changes.
+This thesis proposes and implements a multi-agent regression test case generation system oriented toward code changes. The system employs LangGraph as the orchestration framework, coordinating 12 specialized agent nodes in a hybrid ``rules-primary, LLM-augmented'' architecture. The code change analysis agent extracts change entities and symbol-level analysis using Tree-sitter and heuristic rules. The impact analysis agent achieves precise impact propagation reasoning based on a change decomposition graph (with four node types: file, symbol, seed, and focus) and semantic unit-driven seed/tag association. The test generation agent ensures case executability through a three-tier mechanism: compile verification, LLM retry, and placeholder fallback. The test repair agent forms a closed loop with syntax, import, and known-pattern fixes. All modules can be flexibly enabled via configurable switches, supporting preference-based adjustment between efficiency and effectiveness.
 
-Change impact analysis is a core component of regression testing, aiming to identify the system scope affected by code changes. Traditional methods can only identify line-level changes and fail to reflect the true semantics and impact scope.
+Experimental results on the typer project demonstrate that the proposed method achieves 93\%--96\% test compression rates and 78\%--96\% execution time reduction rates in change-aware scenarios, with a bug detection rate of 90\% compared to 0\% for all baselines. The coverage efficiency ratio (coverage contribution per test case) is 1.33--1.85 times that of the single-agent approach, and the time efficiency ratio on the utils module reaches 2.2 times. Ablation experiments verify the indispensability of each component: removing LLM reduces change coverage by 56.8\%, and removing TestRepair drops the pass rate from 72.63\% to 37.86\%.
 
-Large language models demonstrate strong capabilities in code understanding and natural language processing. Multi-agent systems can handle complex multi-step tasks through collaborative decision-making. This research combines large language models with multi-agent systems to propose an automated software testing method, achieving end-to-end automation from code changes to test case generation.
+\textbf{Keywords:} regression testing; multi-agent system; code change impact analysis; large language model; automated test case generation
 
 \end{abstractEn}
