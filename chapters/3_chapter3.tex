@@ -1,0 +1,485 @@
+% !TEX root = ../main.tex
+%%
+% BIThesis 本科毕业设计论文模板
+%%
+
+% 第三章节
+\chapter{基于代码变更的影响分析方法}
+\section{问题定义与总体架构}
+\subsection{问题定义}
+代码变更影响分析的核心问题可形式化定义为：给定一个代码变更集合$\Delta$，准确识别所有可能受该变更影响的目标程序实体集合$T$，并量化每个目标实体的受影响程度。本研究中，程序实体$T$涵盖函数（Function）、类（Class）、模块（Module）及接口（Interface）等多个粒度层次。
+
+形式化表述如下：设程序$P$由实体集合$E = \{e_1, e_2, \ldots, e_n\}$组成，代码变更$\Delta$包含一系列文件级别的修改$\delta_1, \delta_2, \ldots, \delta_m$。影响分析的输出为目标实体集合$T \subseteq E$，以及每个目标实体$t \in T$的影响评分$I(t) \in [0, 1]$，表示该实体受到变更影响的可能性与程度。
+
+代码变更根据其意图可分为以下三类：
+\begin{itemize}
+    \item \textbf{缺陷修复型}（BUG\_FIX）：旨在修复已有缺陷的代码变更，通常涉及错误处理逻辑、边界条件检查等。
+    \item \textbf{功能新增型}（FEATURE）：旨在引入新功能的代码变更，通常涉及新增接口、扩展逻辑等。
+    \item \textbf{重构优化型}（REFACTOR）：旨在改善代码结构或性能的代码变更，功能行为应保持不变。
+\end{itemize}
+
+传统方法主要依赖文本级Diff比较，仅能识别行级代码变化，难以捕获代码的真实语义变更。端到端黑箱式的影响分析方法虽然简化了处理流程，但存在可追溯性不足的问题。
+
+\subsection{核心理念：结构化中间表示}
+本研究提出基于结构化中间表示的代码变更影响分析方法，将影响分析过程分解为多个明确界定的阶段。这种方法论的优势体现在三个方面：
+
+\textbf{可追溯性}（Traceability）：结构化中间表示使得分析人员能够追踪任意影响路径的完整推导过程。
+
+\textbf{可审计性}（Auditability）：每个中间表示都附带元数据（如置信度评分、来源说明、时间戳等），支持对分析过程进行事后审计。
+
+\textbf{可组合性}（Composability）：结构化中间表示支持模块化组合，不同的分析阶段可以独立开发、测试与优化。
+
+本研究提出的结构化中间表示框架包含以下核心层次：
+\begin{itemize}
+    \item \textbf{结构化变更表示}（SCR）：将Unified Diff解析为文件级、块级的结构化模型，提取程序实体与语义标签。
+    \item \textbf{变更解构图}（CGR）：基于变更实体构建的有向图结构，用于表示变更符号与影响种子之间的关系。
+    \item \textbf{语义单元表示}（SUR）：将变更代码与受影响代码映射为原子语义单元。
+    \item \textbf{结构化影响报告}（SIR）：最终输出的结构化影响分析结果。
+\end{itemize}
+
+这四层表示形成一条完整的信息传递链条，每层都有明确的语义定义与转换接口。
+
+\subsection{总体架构设计}
+图~\ref{fig:impact_analysis_architecture}展示了代码变更影响分析的总体架构。该架构采用基于LangGraph的多Agent工作流模式，通过共享状态（WorkflowState）在各Agent之间传递分析结果。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{tikzpicture}[
+        node distance=1.6cm and 0.7cm,
+        minimum height=0.8cm,
+        font=\small,
+        >=Stealth
+    ]
+    % 输入节点
+    \node (input) [io] {代码变更输入};
+    
+    % 核心工作流节点
+    \node (ingest) [process, right=of input] {CodeChangeAgent\\ingest\_change};
+    \node (probe) [process, right=of ingest] {ProjectProbeAgent\\探查项目结构};
+    \node (impact) [process, right=of probe] {ImpactAnalysisAgent\\影响分析};
+    \node (output) [io, right=of impact] {影响分析结果};
+    
+    % 内部子任务标注
+    \node [below=of ingest, yshift=0.3cm, font=\footnotesize, align=center] {Unified Diff解析\\符号级变更分析\\变更解构图构建};
+    
+    % 共享状态
+    \node (state) [io, below=of probe, yshift=0.2cm] {WorkflowState};
+    
+    % 连接线
+    \draw[arrow] (input) -- (ingest);
+    \draw[arrow] (ingest) -- (probe);
+    \draw[arrow] (probe) -- (impact);
+    \draw[arrow] (impact) -- (output);
+    
+    % 状态传递
+    \draw[dashed, arrow] (ingest) -- (state);
+    \draw[dashed, arrow] (probe) -- (state);
+    \draw[dashed, arrow] (state) -- (impact);
+    
+    % 标注
+    \node [below=of input, yshift=0.3cm, font=\footnotesize] {Unified Diff};
+    \node [above=of output, yshift=-0.3cm, font=\footnotesize] {impact\_result.json};
+    \end{tikzpicture}
+    \caption{基于LangGraph多Agent工作流的影响分析总体架构}
+    \label{fig:impact_analysis_architecture}
+\end{figure}
+
+系统接受Git提交产生的Unified Diff格式代码变更作为输入。在CodeChangeAgent的ingest\_change一步中，完成了多个核心子任务：Unified Diff解析、符号级变更分析（change\_analysis）、以及变更解构图（ChangeGraph）的构建。ingest\_change步骤的输出直接写入共享状态WorkflowState中，供后续Agent读取。
+
+具体而言，ingest\_change的内部处理流程包含以下三个核心环节：首先通过parse\_unified\_diff解析Diff文本，提取变更文件列表（changed\_files）和每个文件的变更块元数据（diff\_hunks）；然后对每个变更文件进行符号级分析，构建ChangeRecord列表（change\_analysis）；最后基于变更实体构建变更解构图（change\_graph），建立变更符号与影响种子（impact\_seeds）之间的关联。
+
+ProjectProbeAgent探查项目的代码结构信息，补充实体间的依赖关系上下文。ImpactAnalysisAgent是核心影响分析模块，它读取WorkflowState中的change\_analysis、change\_graph等共享状态，执行语义单元建模与影响传播推理，输出包含影响图（impact\_graph）、语义单元目录（semantic\_units\_catalog）、测试计划（impact\_test\_plan）和高风险项（top\_risks）的结构化结果。
+
+整个架构的核心设计原则是：各Agent通过WorkflowState共享状态进行协作，ingest\_change一步内完成多个紧密关联的子任务，后续分析模块主要读取WorkflowState中的共享状态而非重新计算。这种设计确保了分析过程的高效性与可追溯性。
+
+\section{代码变更信息提取}
+代码变更信息提取是影响分析的起点，其目标是将非结构化的Unified Diff文本转换为结构化的变更表示。
+
+\subsection{Unified Diff解析与结构化}
+Git生成的Unified Diff格式包含文件头（Hunk Header）和变更块（Hunk Body）两部分。本研究采用Python的\textsf{unidiff}库进行解析~\cite{unidiffLibrary}，并在此基础上设计了结构化的解析结果格式。
+
+parse\_unified\_diff函数返回的解析结果是一个字典结构，包含三个核心字段：
+
+\begin{itemize}
+    \item \textbf{changed\_files}：变更文件路径列表（List[str]），按变更顺序排列。
+    \item \textbf{hunks\_by\_file}：变更块元数据字典（Dict[str, List[HunkMeta]]），键为文件路径，值为该文件的变更块元数据列表。
+    \item \textbf{stats}：变更统计信息，包含总文件数、总新增行数、总删除行数等。
+\end{itemize}
+
+每个变更块元数据（HunkMeta）的结构定义如下：
+
+\begin{lstlisting}
+HunkMeta = {
+    "source_start": int,     # 源文件起始行号
+    "source_length": int,    # 源文件块长度
+    "target_start": int,     # 目标文件起始行号
+    "target_length": int,     # 目标文件块长度
+    "added": int,            # 新增行数
+    "removed": int           # 删除行数
+}
+\end{lstlisting}
+
+解析流程包含以下关键步骤：Diff文本标准化（统一换行符格式、处理编码问题、过滤二进制文件差异）、变更块提取（识别文件头标记与变更块标记）、行级内容解析（统计新增、删除、上下文行数）、结构化输出（封装为统一的数据接口）。
+
+解析完成后，系统输出变更文件列表与每个文件的变更块元数据。这些结构化数据作为后续AST分析与实体抽取的输入。行级详细信息在解析阶段使用后，主要以统计形式（如added/removed计数）参与后续处理，不需要全程保留为独立的行级变更数据结构。
+
+\subsection{变更文件与代码块建模}
+在文件级变更信息的基础上，本研究构建了双层的变更模型作为概念框架：
+
+\textbf{文件级变更模型}描述了变更文件的整体信息，包括文件路径、变更类型及变更统计。文件级模型提供了最粗粒度的变更概览，适用于确定需要重点关注的变更文件集合。
+
+\textbf{块级变更模型}描述了单个变更块的详细信息，包括块在文件中的位置、涉及的函数或类（通过上下文行推断）、以及块内变更的类型分布（通过added/removed计数反映）。
+
+作为概念框架，三层模型（文件$\rightarrow$块$\rightarrow$行）的层级关系可形式化表示为：
+\[
+\Delta_{file} = \{f_1, f_2, \ldots, f_n\}
+\]
+\[
+\Delta_{hunk}(f_i) = \{h_1, h_2, \ldots, h_m\}
+\]
+行级信息$\Delta_{line}(h_j)$在解析阶段用于计算统计指标，但不作为独立数据结构在后续模块间传递。
+
+这种设计在保持模型完整性的同时，避免了行级数据的冗余存储与传递开销，使系统能够高效处理大规模变更场景。
+
+\subsection{变更实体抽取与符号级分析}
+文本级的变更解析无法直接回答"哪些函数或类发生了变更"这一关键问题。为获取变更实体的语义信息，需要对变更代码进行AST解析~\cite{Aho2006Compilers}，并结合Unified Diff上下文推断变更实体的符号级信息。
+
+变更实体抽取的过程分为两步：上下文恢复与AST解析。上下文恢复是指根据Diff中的上下文行信息，从工作区文件恢复变更代码块的完整函数或类定义。上下文范围的确定遵循以下启发式规则：
+
+\begin{enumerate}
+    \item 从变更块所在行向上遍历，寻找最近的函数或类定义的起始位置。
+    \item 从变更块所在行向下遍历，寻找函数或类定义结束的标记。
+    \item 对于Python代码，利用缩进层级判断函数边界的结束位置。
+\end{enumerate}
+
+恢复后的完整代码片段传入AST解析器进行处理。本研究集成Tree-sitter作为多语言通用解析引擎~\cite{Brunsfeld2018TreeSitter}，其优势体现在多语言支持、增量解析与容错能力等方面。针对不同编程语言，本研究实现了相应的解析适配：
+
+\begin{itemize}
+    \item \textbf{Python}：使用Python标准库中的\textsf{ast}模块进行语法树解析~\cite{PythonAST}。
+    \item \textbf{Java、C++、JavaScript/TypeScript}：使用Tree-sitter进行解析，支持类声明、方法声明、函数定义等实体识别。
+\end{itemize}
+
+需要说明的是，上述上下文恢复规则是针对Python语言的启发式实现。对于其他编程语言，上下文边界判断规则可能有所不同。Tree-sitter的多语言支持为未来扩展提供了灵活性。
+
+AST解析后，通过遍历语法树节点提取关键实体信息。抽取结果封装为变更记录对象（ChangeRecord），结构定义如下：
+
+\begin{lstlisting}
+ChangeRecord = {
+    "entity": str,                # 实体名称
+    "type": str,                  # 实体类型：function/class/method
+    "change_type": str,           # 变更类型：ADD/MODIFY/DELETE
+    "semantic_tags": List[str],   # 语义标签列表
+    "test_focus": List[str],      # 测试关注点列表
+    "intent": str,                # 变更意图：BUG_FIX/FEATURE/REFACTOR
+    "impact_seeds": List[ImpactSeed]  # 影响种子列表
+}
+
+ImpactSeed = {
+    "kind": str,                  # 种子类型：function/class/variable
+    "name": str,                  # 种子名称
+    "source": str                 # 种子来源：diff/ast/manual
+}
+\end{lstlisting}
+
+语义标签（semantic\_tags）是变更实体的重要属性，用于描述代码变更的语义特征。本研究定义的语义标签集合包括：
+
+\begin{itemize}
+    \item \textsf{api\_signature\_changed}：API签名变更，函数参数或返回值类型发生变化。
+    \item \textsf{dependency\_call\_changed}：依赖调用变更，函数内部调用的外部依赖发生变化。
+    \item \textsf{exception\_handling\_changed}：异常处理变更，异常捕获或抛出逻辑发生变化。
+    \item \textsf{logic\_branch\_changed}：逻辑分支变更，条件判断或分支逻辑发生变化。
+    \item \textsf{null\_check\_added}：空值检查新增，新增了空值判断逻辑。
+    \item \textsf{return\_value\_changed}：返回值变更，函数返回值的结构或类型发生变化。
+    \item \textsf{input\_validation\_added}：输入校验新增，新增了参数校验逻辑。
+\end{itemize}
+
+变更实体抽取完成后，系统输出变更文件摘要列表，每个文件摘要（FileChangeSummary）包含文件路径与该文件的变更记录列表。这些结构化数据作为Change Graph构建模块与后续影响分析模块的关键输入。
+
+\section{变更解构图构建}
+变更解构图（Change Graph）是用于表示代码变更实体之间关联关系的数据结构，用于支持语义单元建模与影响传播分析。
+
+\subsection{节点与边的定义}
+Change Graph采用有向图结构，其节点和边的定义如下：
+
+\textbf{节点类型}（kind）包括：
+\begin{itemize}
+    \item \textbf{file}：表示源代码文件节点，ID为文件路径。
+    \item \textbf{symbol}：表示程序符号（函数、类、方法）节点，ID格式为"文件路径:type:实体名"。
+    \item \textbf{seed}：表示影响种子节点，用于追踪影响传播路径。
+    \item \textbf{focus}：表示测试关注点节点，与符号节点关联。
+\end{itemize}
+
+\textbf{边类型}（relation）包括：
+\begin{itemize}
+    \item \textbf{contains\_change}：文件节点指向符号节点，表示该符号在文件中发生了变更。
+    \item \textbf{emits\_seed}：符号节点指向seed节点，表示该符号产生的影响种子。
+    \item \textbf{test\_focus}：符号节点指向focus节点，表示该符号关联的测试关注点。
+\end{itemize}
+
+节点与边的权重（weight）反映关联的紧密程度，范围为$[0, 1]$。例如，\textbf{contains\_change}边的权重通常设为1.0，表示直接变更关系；\textbf{emits\_seed}边的权重设为0.85，表示符号对种子的发射强度。
+
+\subsection{变更解构图构建方法}
+Change Graph的构建在ingest\_change步骤中完成，具体算法如下：
+
+\begin{algorithm}[htbp]
+\caption{变更解构图构建算法}
+\label{alg:change_graph_construction}
+\begin{algorithmic}[1]
+\REQUIRE 变更文件摘要列表 $change\_analysis$
+\ENSURE Change Graph $G_{change}$
+
+\STATE $G \leftarrow$ 创建空的有向图
+\STATE $nodes \leftarrow$ 初始化节点集合
+\STATE $edges \leftarrow$ 初始化边集合
+
+\FOR{$file\_summary$ in $change\_analysis$}
+    \STATE $file\_node \leftarrow$ 创建节点(file, $file\_summary.file$)
+    \STATE $nodes.add(file\_node)$
+
+    \FOR{$change$ in $file\_summary.changes$}
+        \STATE $sym\_id \leftarrow f"{file\_summary.file}:{change.type}:{change.entity}"$
+        \STATE $sym\_node \leftarrow$ 创建节点(symbol, $sym\_id$)
+        \STATE $sym\_node.meta \leftarrow$ 填充变更元信息
+        \STATE $nodes.add(sym\_node)$
+        \STATE $edges.add(contains\_change(file\_node, sym\_node, 1.0))$
+
+        \FOR{$seed$ in $change.impact\_seeds$}
+            \STATE $seed\_id \leftarrow f"seed:{sym\_id}"$
+            \STATE $seed\_node \leftarrow$ 创建节点(seed, $seed\_id$)
+            \STATE $seed\_node.meta \leftarrow$ 填充种子信息
+            \STATE $nodes.add(seed\_node)$
+            \STATE $edges.add(emits\_seed(sym\_node, seed\_node, 0.85))$
+        \ENDFOR
+    \ENDFOR
+\ENDFOR
+
+\STATE $G.nodes \leftarrow nodes$
+\STATE $G.edges \leftarrow edges$
+\RETURN $G_{change}$
+\end{algorithmic}
+\end{algorithm}
+
+变更解构图不实现遍历全仓库的依赖分析，而是聚焦于从变更实体直接衍生的关联关系。这种轻量级的图结构支持种子驱动的启发式影响传播，避免了构建完整代码依赖图的高昂开销。
+
+\section{语义单元建模方法}
+语义单元是影响分析中的关键概念，代表代码变更的原子语义功能块。本节详细阐述语义单元的定义、分类体系与提取方法。
+
+\subsection{原子语义单元定义}
+原子语义单元（ASU）是指在语义层面不可再分的代码功能块。ASU的划分遵循功能单一性、边界清晰性、可测试性等原则。
+
+基于语义特征，ASU分为以下四种类型：
+
+\begin{itemize}
+    \item \textbf{配置型}（config）：配置项的读取与管理，如环境变量、配置文件等。
+    \item \textbf{异常处理型}（exception）：异常捕获、抛出与处理逻辑。
+    \item \textbf{API型}（api）：暴露给外部调用的接口函数，涉及网络请求、客户端调用等。
+    \item \textbf{数据处理型}（data\_processing）：数据的转换、过滤、聚合等操作。
+\end{itemize}
+
+ASU的形式化定义如下：
+
+\[
+ASU = (id, type, risk\_score, priority\_score, call\_chain, downstream, upstream, edge\_types)
+\]
+
+其中，各字段的含义为：
+\begin{itemize}
+    \item $id$：语义单元的唯一标识符，格式为"$type:slug$"，如"api:request"。
+    \item $type \in \{config, exception, api, data\_processing\}$：语义单元类型。
+    \item $risk\_score \in [0.14, 0.89]$：风险评分，反映变更的内在风险。
+    \item $priority\_score \in [0.2, 0.9]$：优先级评分，归一化后的综合影响程度。
+    \item $call\_chain$：调用链列表，包含符号标识符。
+    \item $downstream$：下游符号列表，通过seed关联追踪到的受影响符号。
+    \item $upstream$：上游符号列表，当前符号被哪些符号调用。
+    \item $edge\_types$：边类型标签集合，如"config"、"call"、"data"等。
+\end{itemize}
+
+语义单元的优先级划分（P0/P1/P2）规则如下：
+\begin{itemize}
+    \item \textbf{P0（高优先级）}：config、exception、api类型的语义单元，默认最高优先级。
+    \item \textbf{P1（中优先级）}：data\_processing类型且$priority\_score \geq 0.52$的语义单元。
+    \item \textbf{P2（低优先级）}：其余data\_processing类型的语义单元。
+\end{itemize}
+
+\subsection{语义标签体系}
+语义标签（semantic\_tags）是变更实体的重要属性，用于描述代码变更的语义特征。本研究定义的语义标签集合如前述ChangeRecord定义所示。
+
+语义标签在语义单元提取过程中起关键作用：从ChangeRecord的impact\_seeds和semantic\_tags出发，通过规则映射推断语义单元类型。例如，\textsf{api\_signature\_changed}和\textsf{dependency\_call\_changed}标签映射为api类型，\textsf{input\_validation\_added}、\textsf{null\_check\_added}、\textsf{exception\_handling\_changed}映射为exception类型，\textsf{logic\_branch\_changed}、\textsf{return\_value\_changed}映射为data\_processing类型。
+
+每个语义单元类型还关联一组测试关注点（test\_focus），通过规则派生：
+\begin{itemize}
+    \item \textbf{config}：env\_missing（环境变量缺失）、fallback（配置回退）。
+    \item \textbf{exception}：error\_paths（错误分支）、exception\_assertion（异常断言）。
+    \item \textbf{api}：retry（重试）、timeout（超时）、mock（Mock策略）。
+    \item \textbf{data\_processing}：boundary（边界值）、invalid\_input（非法输入）。
+\end{itemize}
+
+\subsection{语义单元提取方法}
+语义单元的提取以规则驱动为主，以大语言模型推断为可选增强。
+
+\textbf{规则驱动的提取}是主路径：语义单元主要从ChangeRecord的impact\_seeds与semantic\_tags聚合而来。具体过程如下：
+
+\begin{enumerate}
+    \item 对每个ChangeRecord，遍历其impact\_seeds列表，根据seed的名称和kind推断语义单元类型（通过正则匹配与关键词分析）。
+    \item 对每条semantic\_tag，映射其对应的语义单元类型。
+    \item 聚合相同类型的语义单元，按原子粒度（每条seed或每条tag对应一个语义单元）构建语义单元候选。
+    \item 对候选进行去重与合并，按语义单元ID聚合来自不同符号的相同语义能力。
+\end{enumerate}
+
+\textbf{LLM推断是条件触发的可选增强}：在默认配置下（used\_llm: False），系统使用纯规则驱动的方法生成语义标签。LLM推断仅在环境变量MUTIAGENT\_IMPACT\_LLM\_REFINE启用时触发，用于对语义标签进行精细化调整。这种设计确保了主流场景下的分析效率，同时保留了语义增强的可能性。
+
+语义单元提取与归类的完整流程如下：
+
+\begin{enumerate}
+    \item 从WorkflowState获取change\_analysis（变更文件摘要列表）。
+    \item 对每个变更记录，执行原子行提取（\_atomic\_rows\_for\_change）。
+    \item 对语义单元候选执行基于规则的类型推断与合并。
+    \item 构建语义单元目录（semantic\_units\_catalog），计算优先级评分。
+    \item 关联测试策略（test\_strategy）与测试关注点（test\_focus）。
+\end{enumerate}
+
+该流程确保了语义单元信息的完整性与准确性，为测试导向分析提供了可靠的基础。
+
+\section{影响传播与风险评估模型}
+
+影响传播是变更影响分析的核心环节，目标是基于种子驱动的启发式关联追踪变更的影响范围，并量化每个受影响实体的风险程度。
+
+\subsection{基于种子与标签的传播机制}
+本研究采用seed/tag驱动的启发式关联方法进行影响传播，而非构建全仓库的依赖图。
+
+传播机制的核心思想是：当某个符号发生变更时，其impact\_seeds中的函数名、类名等信息可以作为影响追踪的种子，在其他符号的变更记录中寻找同名或相关的实体。
+
+具体传播过程如下：
+
+\begin{enumerate}
+    \item 构建种子名称索引（\_seed\_occurrence\_index）：遍历所有变更记录的impact\_seeds，建立种子名称（去噪后）到(文件路径, 符号ID)的映射。
+    \item 对每个语义单元，解析其关联符号的seed名称。
+    \item 在索引中查找同名seed的其他出现位置，建立跨符号关联。
+    \item 按关联强度（优先同文件，其次跨文件）保留最多5个下游符号。
+\end{enumerate}
+
+传播深度（propagation\_depth）的计算遵循以下规则：从直接变更的符号出发，按传播跳数递增，每经过一跳传播深度加1。系统默认的最大传播深度（$D_{max}$）通过环境变量MUTIAGENT\_IMPACT\_MAX\_PROPAGATION\_HOPS配置，默认为3跳。
+
+这种seed/tag驱动的启发式传播避免了构建完整调用图的复杂性，同时能够有效追踪变更的实际影响范围。
+
+\subsection{风险评分与优先级量化}
+本研究的风险评分模型综合考虑变更意图、语义类型、传播深度、符号引用数等多维因素。
+
+风险评分（risk\_score）的计算公式为：
+
+\[
+risk = change\_weight(intent) \times decay^{depth} \times semantic\_weight(type) \times tag\_risk(tags)
+\]
+
+其中：
+\begin{itemize}
+    \item $change\_weight(intent)$：变更意图权重，BUG\_FIX为1.0，FEATURE为0.74，REFACTOR为0.58。
+    \item $decay = 0.88^{max(0, depth)}$：基于传播深度的指数衰减因子。
+    \item $semantic\_weight(type)$：语义类型权重，config为1.1，exception为1.14，api为1.02，data\_processing为0.76。
+    \item $tag\_risk(tags)$：语义标签微调因子，根据是否包含null\_check\_added、input\_validation\_added、exception\_handling\_changed、logic\_branch\_changed、api\_signature\_changed等标签进行累乘（上限1.12）。
+\end{itemize}
+
+优先级评分（priority\_score）的计算公式为：
+
+\[
+raw\_priority = risk \times change\_mult \times centrality\_mult \times \log(1 + refs) \times integration\_mult
+\]
+
+\[
+priority = normalize(raw\_priority, [0.2, 0.9])
+\]
+
+其中：
+\begin{itemize}
+    \item $change\_mult$：变更倍数，直接变更的符号为1.5，传播影响的符号为1.0。
+    \item $centrality\_mult$：中心性乘子，根据下游符号数量与调用链长度计算（0.8/1.0/1.2三档）。
+    \item $refs$：引用符号数量（同一语义单元关联的符号数）。
+    \item $integration\_mult$：集成风险乘子，跨文件关联时为1.3，否则为1.0。
+    \item $normalize$：将raw\_priority归一化到$[0.2, 0.9]$区间。
+\end{itemize}
+
+基于priority\_score，受影响语义单元可划分为以下优先级层次：
+\begin{itemize}
+    \item \textbf{P0（高风险）}：config、exception、api类型的语义单元，需要优先测试。
+    \item \textbf{P1（中风险）}：data\_processing类型且$priority\_score \geq 0.52$的语义单元，需要测试。
+    \item \textbf{P2（低风险）}：其余语义单元，可选择性测试。
+\end{itemize}
+
+\section{影响分析结果生成与结构化输出}
+
+影响分析完成后，需要将分析结果组织为结构化的输出格式，供下游模块使用。
+
+\subsection{结构化输出设计}
+本研究设计了JSON格式的结构化输出，涵盖影响分析的主要结果与元信息。输出文件保存为\textsf{impact\_result.json}，包含以下核心字段：
+
+\begin{itemize}
+    \item \textbf{impact\_graph}：影响图结构，列表形式，每个元素包含file路径与关联的symbols。
+    \item \textbf{semantic\_units\_catalog}：语义单元目录，包含所有原子语义单元及其属性。
+    \item \textbf{impact\_test\_plan}：影响测试计划，按符号组织的测试建议。
+    \item \textbf{top\_risks}：高风险项列表，按priority\_score排序的前N项。
+    \item \textbf{debug}：调试信息，包含分析模式、统计指标等。
+\end{itemize}
+
+语义单元目录（semantic\_units\_catalog）中每个元素的结构定义如下：
+
+\begin{lstlisting}
+SemanticUnit = {
+    "semantic_unit_id": str,        # 唯一标识符
+    "type": str,                    # 语义类型
+    "source": str,                  # 来源（seed或semantic_tag）
+    "risk_score": float,            # 风险评分
+    "priority_score": float,        # 优先级评分
+    "test_priority": str,          # 测试优先级 P0/P1/P2
+    "centrality_factor": float,     # 中心性因子
+    "call_chain": List[str],        # 调用链
+    "downstream": List[str],        # 下游符号
+    "upstream": List[str],          # 上游符号
+    "edge_types": List[str],        # 边类型标签
+    "integration_risk": bool,       # 集成风险标志
+    "referenced_symbol_ids": List[str],  # 引用的符号列表
+    "propagation_depth": int,       # 传播深度
+    "test_focus": List[dict],       # 测试关注点
+    "test_strategy": List[dict]     # 测试策略
+}
+\end{lstlisting}
+
+影响图（impact\_graph）的结构定义如下：
+
+\begin{lstlisting}
+ImpactGraphFile = {
+    "file": str,                    # 文件路径
+    "symbols": List[ImpactGraphSymbol]
+}
+
+ImpactGraphSymbol = {
+    "name": str,                    # 符号名称
+    "entity_type": str,             # 实体类型
+    "symbol_id": str,               # 符号标识符
+    "semantic_unit_ids": List[str], # 关联的语义单元
+    "centrality": float             # 中心性评分
+}
+\end{lstlisting}
+
+\subsection{与下游模块的接口规范}
+影响分析结果通过WorkflowState传递给下游Agent模块：
+
+\begin{itemize}
+    \item \textbf{测试规划Agent}读取impact\_test\_plan获取按优先级排序的测试建议。
+    \item \textbf{检索Agent}读取semantic\_units\_catalog进行相似用例检索。
+    \item \textbf{测试生成Agent}读取semantic\_units\_catalog获取语义单元的完整信息。
+\end{itemize}
+
+结构化的输出设计确保了模块间的松耦合与独立演进能力。
+
+\section{本章小结}
+本章详细阐述了基于代码变更的影响分析方法的设计与实现。本章的核心贡献可归纳为：
+
+\begin{enumerate}
+    \item \textbf{结构化中间表示框架}：提出了SCR、CGR、SUR、SIR四层结构化中间表示模型，采用LangGraph多Agent工作流实现，其中ingest\_change一步内完成Unified Diff解析、符号级变更分析与变更解构图构建。
+    
+    \item \textbf{种子驱动的启发式传播}：设计了基于impact\_seeds与semantic\_tags的传播机制，通过seed\_occurrence\_index实现跨符号关联，priority\_score公式综合风险、变更倍数、中心性、引用数与集成风险等因素进行优先级量化。
+    
+    \item \textbf{测试导向的语义分析}：将语义分析结果与测试关注点显式映射，设计了四类语义单元（config/exception/api/data\_processing）与相应的测试策略派生规则。
+    
+    \item \textbf{多维风险量化体系}：设计了risk\_score与priority\_score构成的双层评分体系，综合考虑变更意图、语义类型、传播深度、符号引用数等维度，支持P0/P1/P2三级优先级划分。
+\end{enumerate}

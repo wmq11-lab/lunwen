@@ -1,0 +1,34 @@
+{
+  // BasicTeX 需补全宏包与参考文献工具，请在终端执行（输入开机密码）:
+  // sudo tlmgr install bithesis biber latexmk
+  "latex-workshop.latex.outDir": "%DIR%",
+  "latex-workshop.latex.autoClean.run": "onBuilt",
+  "latex-workshop.latex.autoBuild.run": "onSave",
+  "latex-workshop.synctex.afterBuild.enabled": true,
+  "latex-workshop.view.pdf.viewer": "tab",
+  "latex-workshop.view.pdf.internal.synctex.keybinding": "double-click",
+  "latex-workshop.latex.tools": [
+    {
+      "name": "xelatex",
+      "command": "/Library/TeX/texbin/xelatex",
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "%DOC%"
+      ]
+    },
+    {
+      "name": "biber",
+      "command": "/Library/TeX/texbin/biber",
+      "args": ["%DOCFILE%"]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "XeLaTeX + Biber + XeLaTeX x2",
+      "tools": ["xelatex", "biber", "xelatex", "xelatex"]
+    }
+  ],
+  "latex-workshop.latex.recipe.default": "XeLaTeX + Biber + XeLaTeX x2"
+}

@@ -1,0 +1,352 @@
+% !TEX root = ../main.tex
+%%
+% BIThesis 本科毕业设计论文模板
+%%
+
+% 第四章节
+\chapter{多智能体测试生成系统设计与实现}
+\section{系统总体架构设计}
+本章围绕"面向代码变更的多智能体回归测试用例生成"这一核心任务，阐述原型系统的总体架构设计。
+\subsection{系统总体架构}
+本系统采用四层架构模型，自顶向下依次为：接入与展示层、编排与状态层、智能体执行层、运行与评估支撑层。该分层设计遵循关注点分离原则，使得各层职责明确、接口清晰，便于独立演进与测试。
+
+接入与展示层基于FastAPI框架构建，负责接收外部请求并返回处理结果。该层对外暴露统一的RESTful API接口，支持同步调用与流式响应两种模式。请求与响应的数据模型均采用Pydantic进行定义与校验。
+
+编排与状态层采用LangGraph的StateGraph机制实现，负责定义多智能体之间的工作流拓扑与状态传递逻辑。StateGraph维护一个贯穿整个工作流的全局状态对象WorkflowState，承载从原始diff到最终评估结果的完整数据。
+
+智能体执行层包含12个命名节点，按照流水线拓扑顺序依次执行。各智能体均为独立的LLM调用单元，负责完成特定的分析、规划或生成任务。智能体之间不直接通信，而是通过读写共享状态实现协作。
+
+运行与评估支撑层提供测试执行、覆盖率采集与结果评估的能力。该层封装了pytest的调用接口，支持在工作树隔离环境中执行生成的测试用例，并采集行覆盖率、分支覆盖率等指标。
+
+\begin{figure}[htbp]
+\centering
+\begin{minipage}[c]{0.45\textwidth}
+\begin{tabbing}
+接入与展示层\\[2mm]
+\indent\= FastAPI + Pydantic\\[2mm]
+编排与状态层\\[2mm]
+\indent\= LangGraph StateGraph + WorkflowState\\[2mm]
+智能体执行层\\[2mm]
+\indent\= 12 个命名 Agent 节点\\[2mm]
+运行与评估支撑层\\[2mm]
+\indent\= pytest + 覆盖率采集 + SQLite 持久化
+\end{tabbing}
+\end{minipage}
+\quad
+\begin{minipage}[c]{0.45\textwidth}
+\vspace{0pt}
+\fbox{
+\parbox{0.9\textwidth}{
+\textbf{图 4.1 系统四层架构示意图}\\
+\textbf{Figure 4.1 Four-layer Architecture of the System}}}
+\end{minipage}
+\end{figure}
+
+在技术选型上，大模型调用层采用OpenAI兼容客户端设计，支持DeepSeek、智谱等主流模型的灵活切换；状态管理层基于Pydantic模型实现数据结构定义与运行时校验；持久化层采用SQLite记录工作流执行轨迹。
+
+与单智能体方案相比，本系统的架构设计具有以下差异特征：采用流水线分工模式，降低了单个智能体的认知负荷；所有中间表示均显式存储于全局状态中，可供后续审计与消融实验使用；关键能力以可配置开关的形式嵌入状态对象。
+
+\subsection{多智能体协同流程}
+完整的工作流节点序列为：CodeChangeAgent $\rightarrow$ ProjectProbeAgent $\rightarrow$ ImpactAnalysisAgent $\rightarrow$ BugPatternAgent $\rightarrow$ TestPlanningAgent $\rightarrow$ TestPrioritizationAgent $\rightarrow$ RetrievalAgent $\rightarrow$ TestGenAgent $\rightarrow$ TestRepairAgent $\rightarrow$ ExecutionAgent $\rightarrow$ EvaluationAgent $\rightarrow$ FeedbackAgent $\rightarrow$ END。
+
+各智能体的职责划分如下：
+\begin{itemize}
+    \item CodeChangeAgent：负责解析原始diff并构建变更理解结构
+    \item ProjectProbeAgent：提取项目结构与依赖信息
+    \item ImpactAnalysisAgent：分析代码变更的影响范围，生成影响图
+    \item BugPatternAgent：识别潜在缺陷模式
+    \item TestPlanningAgent：基于影响分析结果生成结构化测试计划
+    \item TestPrioritizationAgent：对测试用例进行优先级排序
+    \item RetrievalAgent：检索相似测试作为生成参考
+    \item TestGenAgent：核心生成单元，负责产出pytest测试代码
+    \item TestRepairAgent：对生成的测试进行修复与优化
+    \item ExecutionAgent：在隔离环境中执行测试并采集结果
+    \item EvaluationAgent：汇总评估指标
+    \item FeedbackAgent：生成最终报告并更新全局状态
+\end{itemize}
+
+数据在各节点之间的传递通过WorkflowState实现。以变更理解阶段为例，CodeChangeAgent读取原始diff，输出变更图与变更分析字段写入状态；ImpactAnalysisAgent读取上述字段，执行影响分析后，将影响图与语义单元目录写入状态；后续节点依次读取并丰富相关字段，形成端到端的数据流闭环。
+
+系统定义了三种核心的中间表示数据结构：变更图（ChangeGraph）以代码变更的最小语义单元为节点；影响图（impact\_graph）按分层组织方式组织影响范围；语义单元目录（SemanticUnit Catalog）将代码实体按类型划分为config、exception、api、data\_processing等类别，每个单元包含优先级评分。
+
+结构化测试用例（StructuredTestCase）作为影响侧与生成侧之间的桥梁，其字段设计包含symbol\_id、semantic\_unit\_ids等影响侧标识，以及expected\_behavior、prerequisite等生成侧约束。
+
+如图~\ref{fig:structured_testcase}所示，StructuredTestCase的核心字段包括用例标识符、目标符号、测试分层、优先级、结构化输入、Mock说明、断言列表和语义单元列表等组成部分。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1cm and 1cm, minimum height=0.6cm, font=\small]
+\node (root) [root] {StructuredTestCase};
+
+\node (id) [child, below left=1cm and 1.2cm of root] {用例标识符};
+\node (target) [child, left=of id] {目标符号};
+\node (symbol_id) [child, left=of target] {符号标识符};
+
+\node (layer) [child, below=of id] {测试分层};
+\node (priority) [child, right=of layer] {优先级};
+
+\node (input) [child, below=of layer] {结构化输入};
+\node (mock_spec) [child, right=of input] {Mock说明};
+
+\node (assertions) [child, below=of input] {断言列表};
+\node (description) [child, right=of assertions] {场景描述};
+
+\node (semantic_units) [child, below=of assertions] {语义单元列表};
+
+\draw[link] (root) -- (id);
+\draw[link] (id) -- (target);
+\draw[link] (target) -- (symbol_id);
+\draw[link] (id) -- (layer);
+\draw[link] (layer) -- (priority);
+\draw[link] (layer) -- (input);
+\draw[link] (input) -- (mock_spec);
+\draw[link] (input) -- (assertions);
+\draw[link] (assertions) -- (description);
+\draw[link] (assertions) -- (semantic_units);
+\end{tikzpicture}
+\caption{结构化测试用例模型}
+\label{fig:structured_testcase}
+\end{figure}
+
+\subsection{质量门控机制}
+为确保生成的回归测试用例具备基本的可用性与有效性，本系统在流水线中嵌入多阶段质量门控机制，覆盖语法校验、静态修复、执行验证与量化评估等环节。
+
+语法正确性检查位于TestRepairAgent之前。系统使用Python的AST模块对生成的代码进行解析，验证其语法合法性。若解析失败，则将失败信息记录于状态对象，并转交至TestRepairAgent进行处理。
+
+TestRepairAgent专门负责处理静态层面与执行前可侦测的问题。其修复范围包括：语法错误修正、导入语句补全、fixture依赖消解、以及代码风格规范化。
+
+执行结果质量评估由EvaluationAgent完成，计算以下核心指标：通过率、变更行覆盖率、变更函数覆盖率、测试选择精准度（F1分数）。
+
+\begin{table}[htbp]
+\centering
+\caption{质量门控指标体系}
+\label{tab:quality-gates}
+\begin{tabular}{llll}
+\toprule
+指标类别 & 指标名称 & 计算方式 & 阈值说明 \\
+\midrule
+语法质量 & AST 解析通过率 & 成功解析数 / 总生成数 & $\ge$ 95\% \\
+执行质量 & 用例通过率 & 通过用例数 / 总用例数 & $\ge$ 80\% \\
+覆盖率 & 变更行覆盖率 & 覆盖变更行 / 总变更行 & $\ge$ 70\% \\
+覆盖率 & 变更函数覆盖率 & 覆盖函数数 / 总函数数 & $\ge$ 80\% \\
+精准度 & Selection F1 & 2$\times$P$\times$R/(P+R) & $\ge$ 0.75 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+为支持消融实验与方案对比，系统定义了多个可配置开关字段，包括retrieval\_enabled、bug\_pattern\_enabled、test\_repair\_enabled等。
+
+\section{核心Agent模块设计}
+本系统采用流水线架构，将回归测试生成任务分解为七个阶段。每个阶段由专门的Agent负责，通过读写共享的WorkflowState进行状态传递与协作。
+\subsection{变更理解阶段}
+变更理解阶段是整个流水线的入口，负责解析代码变更并构建结构化的变更表示。
+\subsubsection{CodeChangeAgent（变更理解）}
+CodeChangeAgent作为流水线的首个Agent，承担着解析代码变更并建立变更语义模型的任务。其核心入口函数为\texttt{ingest\_change}。
+
+该Agent的核心处理流程分为四个主要步骤：
+\begin{enumerate}
+    \item \texttt{parse\_unified\_diff}函数负责解析统一的diff格式，提取变更文件列表和变更块
+    \item \texttt{check\_diff\_worktree\_consistency}函数验证解析得到的diff与工作树状态的一致性
+    \item \_build\_change\_analysis方法构建变更分析结果
+    \item \texttt{build\_change\_graph}方法将分析结果转化为结构化的变更图
+\end{enumerate}
+
+该Agent的输入状态字段为\texttt{repo\_path}和\texttt{diff}，输出状态字段包括\texttt{changed\_files}、\texttt{diff\_hunks}、\texttt{change\_analysis}和\texttt{change\_graph}。
+
+CodeChangeAgent的关键设计在于变更图的数据结构设计。变更图的节点类型包含文件节点、符号节点、种子节点和测试关注点节点四类，边上携带权重与关系类型标签。
+\subsubsection{ProjectProbeAgent（项目探测）}
+ProjectProbeAgent负责探测代码仓库的技术栈信息，为后续测试生成提供必要的环境配置依据。其核心流程以\_build\_profile方法为主导，探测并推断项目的编程语言、框架类型、模块根路径、依赖声明行，形成完整的项目画像。
+
+该Agent读取CodeChangeAgent输出的\texttt{changed\_files}字段，用于依赖推断和符号采集。写出的状态包括\texttt{project\_profile}和预配置虚拟环境信息。
+\subsubsection{ImpactAnalysisAgent（影响分析）}
+ImpactAnalysisAgent负责分析代码变更的影响范围，识别需要重点测试的语义单元。其处理流程首先调用build\_impact\_graph方法构建影响图。最终输出影响图和语义单元目录。
+
+语义单元目录的类型分类体系包括：config（配置项与参数变更）、exception（异常处理逻辑变更）、api（接口签名与行为变更）、data\_processing（数据处理与转换逻辑变更）、business\_logic（核心业务规则变更）、integration（模块间集成点变更）。
+
+该Agent的关键设计体现在语义单元的priority\_score由风险系数、变更权重、中心性指标、引用频次和集成风险五个维度综合计算得出。
+\subsection{测试规划阶段}
+测试规划阶段基于变更理解的结果，制定测试策略与优先级。
+\subsubsection{BugPatternAgent（缺陷模式识别）}
+BugPatternAgent负责识别代码变更可能引入的典型缺陷模式，为测试用例设计提供针对性指导。该Agent利用语义单元目录和风险排序列表构建查询签名，采用向量相似度检索方法寻找匹配的缺陷模式案例。
+
+内置的规则模板覆盖了空指针解引用、数组边界条件、异常处理不完善、并发竞态条件、资源泄漏等常见缺陷类型。当规则模板匹配不足时，可选的LLM精炼步骤能够根据具体代码上下文生成更具针对性的缺陷模式假设。
+\subsubsection{TestPlanningAgent（测试规划）}
+TestPlanningAgent负责将影响分析结果转化为结构化的测试计划，是测试生成的核心依据。
+
+该Agent的处理流程设计为幂等操作：若测试计划已存在则直接跳过。具体流程中，Agent首先基于影响测试计划和语义单元目录生成结构化的测试用例列表。每个StructuredTestCase包含场景描述、测试目标、所需语义单元标识等信息。
+
+\begin{algorithm}[htbp]
+\caption{TestPlanningAgent测试规划生成}
+\label{alg:test-planning}
+\begin{algorithmic}[1]
+\STATE \textbf{Procedure} plan\_tests($state$)
+\IF{$\text{state.test\_plan} \neq \varnothing$}
+\STATE \textbf{return} state
+\ENDIF
+\STATE $structured\_cases \leftarrow []$
+\FORALL{$impact\_item \in \text{state.impact\_test\_plan}$}
+\STATE $unit\_ids \leftarrow \text{resolve\_semantic\_unit\_ids}(impact\_item)$
+\STATE $case \leftarrow \text{StructuredTestCase}(scenario, unit\_ids)$
+\STATE $structured\_cases \leftarrow structured\_cases \cup \{\text{case}\}$
+\ENDFOR
+\STATE $state.\text{test\_plan} \leftarrow \text{flatten\_test\_plan}(state.\text{structured\_test\_plan})$
+\STATE \textbf{return} state
+\end{algorithmic}
+\end{algorithm}
+\subsubsection{TestPrioritizationAgent（测试优先级）}
+TestPrioritizationAgent负责对生成的测试计划进行优先级排序，指导测试资源的高效分配。
+
+该Agent的核心评分逻辑综合考虑多个维度：为每个测试用例关联的符号及其对应的语义单元计算优先级分数，该分数由语义单元的priority\_score乘以符号在变更图中的中心性指标得出。
+
+优先级分档策略（P0/P1/P2三档）是该Agent的关键设计。P0档对应核心业务逻辑和关键API变更；P1档对应一般性功能变更；P2档对应低风险的配置变更。
+\subsection{测试生成阶段}
+测试生成阶段是流水线的核心环节，负责基于测试计划和变更上下文生成可执行的测试代码。
+\subsubsection{RetrievalAgent（上下文检索）}
+RetrievalAgent负责从代码仓库中检索与变更相关的上下文信息，为测试生成提供项目背景知识。
+
+该Agent的处理流程首先从变更路径、测试计划等来源抽取关键词序列。Agent扫描代码仓库收集候选的Python源文件和测试文件集合，采用基于词命中的评分机制计算每个片段与查询关键词的相关度，选取Top-N得分最高的片段组成检索结果。
+\subsubsection{TestGenAgent（测试生成）}
+TestGenAgent是流水线的核心生成Agent，负责基于结构化测试计划和变更上下文生成可执行的测试代码。
+
+当大语言模型可用时，Agent调用\_llm\_generate方法构造包含项目画像、结构化测试计划、diff上下文和检索片段的Prompt，发送给LLM生成测试代码。生成的测试代码随后经过一系列清洗处理，包括去除多余解释文本、修正import错误、规范函数命名等。
+
+\begin{algorithm}[htbp]
+\caption{TestGenAgent测试生成流程}
+\label{alg:test-gen}
+\begin{algorithmic}[1]
+\STATE \textbf{Procedure} generate\_tests($state$)
+\STATE $prompt \leftarrow \_llm\_generate(\text{project\_profile}, \text{structured\_test\_plan}, \text{change\_analysis}, \text{diff\_hunks}, \text{retrieved\_context})$
+\STATE $raw\_tests \leftarrow \text{call\_llm}(prompt)$
+\STATE $tests \leftarrow []$
+\FORALL{$raw \in raw\_tests$}
+\STATE $clean \leftarrow \_sanitize\_comments(raw)$
+\STATE $clean \leftarrow \_sanitize\_imports(clean)$
+\IF{$\text{syntax\_check}(clean)$}
+\STATE $tests \leftarrow tests \cup \{\text{GeneratedTestFile}(clean)\}$
+\ENDIF
+\ENDFOR
+\STATE $state.\text{generated\_tests} \leftarrow tests$
+\STATE \textbf{return} state
+\end{algorithmic}
+\end{algorithm}
+
+Prompt工程是该Agent的核心技术要点。高质量的Prompt需要综合项目画像提供领域背景、结构化测试计划明确测试意图、diff上下文呈现具体变更、检索片段补充项目规范。
+\subsection{测试执行阶段}
+测试执行阶段负责运行生成的测试用例并收集执行结果。
+\subsubsection{ExecutionAgent（测试执行）}
+ExecutionAgent负责在正确配置的虚拟环境中执行测试用例，并收集结构化的执行结果。
+
+该Agent的核心处理流程首先确定Python解释器路径。Agent在.mutiagent/reports/目录下创建以时间戳命名的报告目录。测试执行通过子进程调用pytest完成，可选启用代码覆盖率采集功能。执行完成后，Agent解析生成的JUnit XML文件，提取测试结果摘要。
+\subsubsection{TestRepairAgent（测试修复）}
+TestRepairAgent负责在测试执行前修复生成的测试代码中的语法和导入错误。
+
+该Agent的处理流程以单个GeneratedTestFile为处理单元。对于每个测试文件，Agent首先执行语法检查。若语法检查失败，Agent首先尝试基于规则的修复策略，包括修正import路径、补充缺失导入、修复语法结构等。当规则修复无法解决问题时，Agent可选调用LLM生成修复后的代码。
+
+TestRepairAgent的设计遵循"只修语法不修断言"的原则，专注于修复语法错误、导入问题和代码结构问题，避免修改测试的验证逻辑。
+\subsection{评估反馈阶段}
+评估反馈阶段负责评估测试执行结果的质量，并生成改进建议。
+\subsubsection{EvaluationAgent（结果评估）}
+EvaluationAgent负责对测试执行结果进行全面评估，计算变更覆盖率和各项质量指标。
+
+该Agent的处理流程首先读取执行信息。Agent解析coverage.json文件获取代码覆盖率数据，计算变更行的覆盖率recall。最终，Agent计算所有评估指标，输出至状态对象。
+
+\begin{table}[htbp]
+\centering
+\caption{评估指标体系}
+\label{tab:evaluation-metrics}
+\begin{tabular}{llp{6cm}}
+\toprule
+指标名称 & 符号 & 描述说明 \\
+\midrule
+变更行覆盖率 & $C_{line}$ & diff增加行中被测试执行的比例 \\
+新增函数覆盖率 & $C_{func}$ & 变更涉及的新增函数被测试覆盖的比例 \\
+跨模块测试数 & $N_{cross}$ & 测试用例涉及多个模块的数量 \\
+遗漏变更点数 & $N_{miss}$ & 高风险语义单元未被测试覆盖的数量 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\subsubsection{FeedbackAgent（反馈优化）}
+FeedbackAgent负责基于评估结果生成针对性的改进建议，完成流水线的反馈闭环。
+
+该Agent仅在run\_eval模式且存在evaluation结果时触发。处理流程首先计算质量指标。当测试全部通过时，Agent区分正常的通过和降级通过（degraded\_pass），后者表示测试虽然通过但某些质量指标出现下降。当存在测试失败时，Agent基于失败模板生成初步建议，必要时调用LLM生成更具针对性的改进建议。
+
+FeedbackAgent的设计遵循"只读建议不回写"的原则，输出的feedback为改进建议形式，不自动修改测试计划，不触发变更图的重新构建。
+
+\section{测试生成策略}\label{sec:generation_strategy}
+
+本系统以代码变更作为测试生成的首要约束，通过"变更解析→影响传播→结构化用例设计→跨阶段一致表示"的完整链路，实现变更驱动的测试用例生成。
+
+\subsection{基于变更的测试策略}\label{sec:change_based_strategy}
+本策略包含四个递进层次，从变更语义理解到生成约束传导，构成完整的测试规划与生成闭环。
+
+系统首先对统一diff格式进行解析，将修改位置与程序实体进行对齐。该过程输出有限集合内的语义标签，包括接口签名变更、异常路径修改、分支逻辑变化、校验规则调整等。这些语义标签进一步映射到测试设计关注点与变更意图分类：缺陷修复（Bug Fix）、新特性开发（Feature）、代码重构（Refactoring）。
+
+在变更图之上构建分层影响结构，采用三元层次模型：\textbf{文件层→符号层→语义单元层}。对每个语义单元计算综合优先级分数，根据分数将语义单元划分为三个优先级：P0（关键回归）、P1（重要验证）、P2（可选检查）。
+
+测试规划阶段按分层组织目标：\textbf{单元测试层、集成测试层、契约测试层、端到端测试层}。各层结合相应的Mock/桩策略，给出可执行性描述。
+
+约束传导过程将高层规划意图逐层分解至生成阶段，具体流程如图~\ref{fig:constraint_propagation}所示：
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=1.5cm, minimum height=0.8cm]
+\node (plan) [process] {测试规划层};
+\node (sort) [process, right of=plan, xshift=3cm] {用例排序层};
+\node (gen) [process, right of=sort, xshift=3cm] {测试生成层};
+\node (p0) [below of=plan, yshift=-0.5cm] {分层目标集合};
+\node (p1) [below of=sort, yshift=-0.5cm] {权重用例序列};
+\node (p2) [below of=gen, yshift=-0.5cm] {约束注入提示};
+
+\draw[arrow] (plan) -- (sort) node[midway, above] {规划结果};
+\draw[arrow] (sort) -- (gen) node[midway, above] {重排序列};
+\draw[arrow] (p0) -- ++(-1.5cm, 0) -| (plan);
+\draw[arrow] (p1) -- ++(-1.5cm, 0) -| (sort);
+\draw[arrow] (p2) -- ++(-1.5cm, 0) -| (gen);
+\end{tikzpicture}
+\caption{约束传导流程示意图}
+\label{fig:constraint_propagation}
+\end{figure}
+
+\subsection{结构化中间表示传递}\label{sec:intermediate_representation}
+
+全流程以单一工作流状态对象为载体，在智能体之间传递结构化结果，避免仅靠非结构化自然语言衔接造成的语义衰减。主要传递链及数据流向如图~\ref{fig:data_flow}所示：
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=2.2cm and 3.2cm, minimum height=0.7cm, font=\small]
+\node (diff) [io] {变更摘要与变更图};
+\node (impact) [process, right=of diff] {影响图与语义单元};
+\node (pattern) [process, right=of impact] {缺陷模式列表（可选）};
+\node (plan) [process, below=of pattern] {结构化测试计划};
+\node (rank) [process, left=of plan] {重排优先级计划};
+\node (context) [process, left=of rank] {检索上下文（可选）};
+\node (generate) [io, below=of plan] {生成测试文件列表};
+\node (execute) [io, right=of generate] {执行快照与评估摘要};
+\node (feedback) [io, right=of execute] {反馈条目};
+
+\draw[arrow] (diff) -- (impact);
+\draw[arrow, dashed] (impact) -- (pattern);
+\draw[arrow] (pattern) -- (plan);
+\draw[arrow] (plan) -- (rank);
+\draw[arrow, dashed] (rank) -- (context);
+\draw[arrow] (rank) -- (generate);
+\draw[arrow] (generate) -- (execute);
+\draw[arrow] (execute) -- (feedback);
+\draw[arrow, bend left=28] (feedback) .. controls +(up:2cm) and +(right:0.5cm) .. (diff);
+\end{tikzpicture}
+\caption{跨阶段数据流与中间表示传递}
+\label{fig:data_flow}
+\end{figure}
+
+具体传递内容包括：
+\begin{enumerate}
+\item \textbf{阶段一}：变更摘要与变更图（$\mathcal{G}_{\Delta}$）
+\item \textbf{阶段二}：影响图$\mathcal{G}_I$、语义单元目录$\mathcal{U}$、符号级测试计划与高风险摘要
+\item \textbf{阶段三（可选）}：缺陷模式列表$\mathcal{P}$
+\item \textbf{阶段四}：结构化测试计划$\mathcal{TS}$与扁平测试意图列表$\mathcal{TI}$
+\item \textbf{阶段五}：重排后的优先级计划$\mathcal{TS}'$
+\item \textbf{阶段六（可选）}：检索上下文条目$\mathcal{C}$
+\item \textbf{阶段七}：生成测试文件列表$\mathcal{F}$
+\item \textbf{阶段八}：执行快照与评估摘要$(\mathcal{R}, \mathcal{E})$
+\item \textbf{阶段九}：反馈条目$\mathcal{FB}$
+\end{enumerate}
