@@ -44,7 +44,7 @@
     \centering
     \caption{实验环境配置}
     \label{tab:exp_env_config}
-    \begin{tabular}{lp{0.66\linewidth}}
+    \begin{tabular}{l>{\raggedright\arraybackslash}p{0.66\linewidth}}
         \toprule
         \textbf{项目} & \textbf{配置说明} \\
         \midrule
@@ -62,7 +62,7 @@
 
 \textbf{（1）单元测试生成数据集。}选取Python开源项目typer（版本0.9.0）的两个核心模块：utils模块（约850行代码）和core模块（约1200行代码）。
 
-\textbf{（2）变更感知测试数据集。}从typer项目Git提交历史中选取真实提交（commit hash: a3f8c2d），涉及3个文件的修改，累计变更行数约25行。
+\textbf{（2）变更感知测试数据集。}从typer项目Git提交历史中选取多个真实提交。
 
 \subsection{Baseline工具}
 \label{ssec:baseline_tools}
@@ -233,7 +233,6 @@
 \centering
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:statement-coverage}\vspace{0pt}
 \captionof{figure}{(a) 语句覆盖率}
 \label{fig:statement-coverage}
 \begin{tikzpicture}
@@ -241,17 +240,26 @@
     width=1.0\textwidth,
     height=0.42\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0, ymax=100,
+    enlarge y limits={upper, 0.22},
     ylabel={覆盖率 (\%)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{5}{7}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt},
 ]
 \addplot+ coordinates {(1, 76.8) (2, 48.61)};
 \addplot+ coordinates {(1, 57.89) (2, 14.84)};
@@ -264,7 +272,6 @@
 \hfill
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:branch-coverage}\vspace{0pt}
 \captionof{figure}{(b) 分支覆盖率}
 \label{fig:branch-coverage}
 \begin{tikzpicture}
@@ -272,17 +279,26 @@
     width=1.0\textwidth,
     height=0.42\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0, ymax=100,
+    enlarge y limits={upper, 0.22},
     ylabel={覆盖率 (\%)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{5}{7}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt},
 ]
 \addplot+ coordinates {(1, 50) (2, 21.12)};
 \addplot+ coordinates {(1, 44.12) (2, 3.52)};
@@ -312,7 +328,6 @@
 
 \begin{figure}[htbp]
 \centering
-\ref*{fig:test-pass-rate}\vspace{0pt}
 \captionof{figure}{测试通过率对比}
 \label{fig:test-pass-rate}
 \begin{tikzpicture}
@@ -320,17 +335,26 @@
     width=0.7\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0, ymax=105,
+    enlarge y limits={upper, 0.14},
     ylabel={通过率 (\%)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{5}{7}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt},
 ]
 \addplot+ coordinates {(1, 78.94) (2, 36.67)};
 \addplot+ coordinates {(1, 100) (2, 100)};
@@ -355,7 +379,6 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 \centering
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:generation-time}\vspace{0pt}
 \captionof{figure}{(a) 生成时间}
 \label{fig:generation-time}
 \begin{tikzpicture}
@@ -363,17 +386,26 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=1.0\textwidth,
     height=0.42\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0,
     ylabel={时间 (秒)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    enlarge y limits={upper, 0.18},
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{4}{6}\selectfont, rotate=45, anchor=north west, yshift=0.05cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt, rotate=35},
 ]
 \addplot+ coordinates {(1, 635.68) (2, 680.75)};
 \addplot+ coordinates {(1, 388.45) (2, 588.37)};
@@ -386,7 +418,6 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 \hfill
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:efficiency-scatter}\vspace{0pt}
 \captionof{figure}{(b) 效率-覆盖率散点图（对数X轴）}
 \label{fig:efficiency-scatter}
 \begin{tikzpicture}
@@ -399,8 +430,15 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     log basis x={10},
     xmin=10, xmax=1000,
     ymin=0, ymax=100,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=1},
+    clip=false,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=1,
+        at={(0.5,1.06)},
+        anchor=south,
+    },
 ]
 % 高效高覆盖理想区域（浅灰背景）
 \addplot[draw=none, fill=gray!10] coordinates {(10, 60) (10, 100) (100, 100) (100, 60)} \closedcycle;
@@ -512,7 +550,6 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 \centering
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:cer-comparison}\vspace{0pt}
 \captionof{figure}{(a) 覆盖率效率比对比}
 \label{fig:cer-comparison}
 \begin{tikzpicture}
@@ -520,17 +557,26 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=1.0\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0, ymax=12,
+    enlarge y limits={upper, 0.15},
     ylabel={CER (\%/用例)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{5}{7}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt},
 ]
 \addplot+ coordinates {(1, 4.04) (2, 1.62)};
 \addplot+ coordinates {(1, 9.65) (2, 2.47)};
@@ -543,7 +589,6 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 \hfill
 \begin{minipage}[t]{0.47\textwidth}
 \centering
-\ref*{fig:ter-comparison}\vspace{0pt}
 \captionof{figure}{(b) 时间效率比对比}
 \label{fig:ter-comparison}
 \begin{tikzpicture}
@@ -551,17 +596,26 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=1.0\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.25,
+    bar width=0.14,
     ymin=0, ymax=5,
+    enlarge y limits={upper, 0.15},
     ylabel={TER (\%/s)},
     xtick={1,2},
     xticklabels={utils, core},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.48,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=4,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{5}{7}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2.5pt},
 ]
 \addplot+ coordinates {(1, 0.12) (2, 0.07)};
 \addplot+ coordinates {(1, 0.15) (2, 0.03)};
@@ -680,14 +734,21 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.85\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.2,
+    bar width=0.14,
     ymin=0, ymax=80,
     ylabel={变更覆盖率 (\%)},
     xtick={1,2,3,4,5,6},
     xticklabels={f398fb1, 722a4fe, 74e0923, fd4241f, 3e37e01, 5bea9cf},
-    enlarge x limits=0.15,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=3},
+    enlarge x limits=0.32,
+    clip=false,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=3,
+        at={(0.5,1.04)},
+        anchor=south,
+    },
     blackwhite,
     nodes near coords,
     every node near coord/.append style={font=\fontsize{4}{6}\selectfont, anchor=south, yshift=0.08cm},
@@ -720,15 +781,22 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.6\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.5,
+    bar width=0.16,
     ymin=0, ymax=120,
     ylabel={Bug检测率 / 压缩率 (\%)},
     xtick={1,2},
     xticklabels={Bug检测率, 平均压缩率},
-    enlarge x limits=0.3,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=1},
+    enlarge x limits=0.52,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=3,
+        at={(0.5,1.05)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
 ]
 \addplot+ coordinates {(1, 0) (2, 95.11)};
 \addlegendentry{Single-Agent}
@@ -859,7 +927,6 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 
 \begin{figure}[htbp]
 \centering
-\ref*{fig:module-contribution}\vspace{0pt}
 \captionof{figure}{各模块对变更覆盖率的贡献度}
 \label{fig:module-contribution}
 \begin{tikzpicture}
@@ -867,17 +934,26 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.7\textwidth,
     height=0.35\textwidth,
     ybar,
-    bar width=0.5,
-    ymin=0, ymax=45,
+    bar width=0.24,
+    ymin=0, ymax=70,
+    enlarge y limits={upper, 0.12},
     ylabel={贡献度 (\%)\footnote{贡献度=Full System值-消融配置值}},
     xtick={1,2,3},
     xticklabels={ImpactAnalysis, BugPattern, Retrieval},
-    enlarge x limits=0.25,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.36,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=2,
+        at={(0.5,1.06)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{6}{8}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{5}{6}\selectfont, inner sep=0.5pt},
+    every node near coord/.append style={anchor=south, yshift=2pt},
 ]
 \addplot+ coordinates {(1, 21.20) (2, 11.05) (3, 16.20)};
 \addlegendentry{变更覆盖率贡献}
@@ -933,7 +1009,6 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 \begin{figure}[htbp]
 \centering
-\ref*{fig:repair-contribution}\vspace{0pt}
 \captionof{figure}{自修复模块贡献度对比}
 \label{fig:repair-contribution}
 \begin{tikzpicture}
@@ -941,15 +1016,22 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
     width=0.55\textwidth,
     height=0.35\textwidth,
     ybar,
-    bar width=0.35,
+    bar width=0.22,
     ymin=0, ymax=60,
     ylabel={贡献度 (百分点)},
     xtick={1,2},
     xticklabels={TestRepair, Feedback},
-    enlarge x limits=0.3,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=2},
+    enlarge x limits=0.45,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=2,
+        at={(0.5,1.06)},
+        anchor=south,
+    },
     blackwhite,
+    clip=false,
     nodes near coords,
     every node near coord/.append style={font=\fontsize{6}{8}\selectfont, anchor=south, yshift=0.1cm},
 ]
@@ -968,6 +1050,7 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
     \centering
     \caption{组3消融实验：LLM能力影响对比}
     \label{tab:ablation-group3}
+    \resizebox{\textwidth}{!}{%
     \begin{tabular}{lcccccc}
         \toprule
         \textbf{提交} & \textbf{配置} & \textbf{变更覆盖率(\%)} & \textbf{测试通过率(\%)} & \textbf{新增函数覆盖率(\%)} & \textbf{生成时间(s)} & \textbf{用例数} \\
@@ -984,7 +1067,8 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
         \textbf{均值} & w/o LLM & 24.57 & 64.15 & 16.67 & \textbf{15.13} & 41 \\
         & Full System & \textbf{56.89} & \textbf{72.63} & \textbf{86.67} & 333.17 & 96 \\
         \bottomrule
-    \end{tabular}
+    \end{tabular}%
+    }
 \end{table}
 
 去掉LLM后，变更覆盖率均值从56.89\%降至24.57\%，降幅\textbf{56.8\%}；新增函数覆盖率均值从86.67\%降至16.67\%，降幅\textbf{80.8\%}。w/o LLM配置的生成时间仅为15.13秒，效率优势约22倍，但以牺牲大量覆盖率为代价。
@@ -995,7 +1079,6 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 \begin{figure}[htbp]
 \centering
-\ref*{fig:ablation-summary}\vspace{0pt}
 \captionof{figure}{消融实验综合贡献度排名}
 \label{fig:ablation-summary}
 \begin{tikzpicture}
@@ -1003,14 +1086,22 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
     width=0.8\textwidth,
     height=0.4\textwidth,
     xbar,
-    bar width=0.4,
+    bar width=0.28,
     xmin=0, xmax=100,
     xlabel={贡献度 (百分点)},
     ytick={1,2,3,4,5},
     yticklabels={LLM (覆盖率), ImpactAnalysis (覆盖率), ImpactAnalysis (新增函数), TestRepair (通过率), Retrieval (覆盖率)},
-    enlarge x limits=0.1,
-    legend pos=north east,
-    legend style={font=\fontsize{5}{7}\selectfont, fill=white, draw=black!50, legend columns=1},
+    enlarge x limits={upper, 0.06},
+    enlarge y limits=0.14,
+    clip=false,
+    legend style={
+        font=\fontsize{5}{7}\selectfont,
+        fill=white,
+        draw=black!50,
+        legend columns=2,
+        at={(0.5,1.08)},
+        anchor=south,
+    },
     blackwhite,
     nodes near coords,
     every node near coord/.append style={font=\fontsize{6}{8}\selectfont, anchor=east, xshift=-0.1cm},
