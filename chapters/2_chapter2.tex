@@ -53,7 +53,7 @@ LangGraph的核心抽象包括StateGraph、节点（Node）和边（Edge）三�
 本研究采用LangGraph作为多智能体协同框架的核心基础设施。通过StateGraph定义测试生成工作流的全局状态结构，工作流中的各个处理阶段均建模为独立节点，通过边定义节点间的数据流向与控制依赖。这种基于图的工作流建模方式既保证了处理流程的清晰性，又为后续的功能扩展与优化提供了灵活性。
 
 \subsection{多Agent协同机制}
-多智能体系统（Multi-Agent System, MAS）是由多个具有自主能力的智能体（Agent）组成的计算系统，智能体之间通过协作完成复杂任务~\cite{Wooldridge2009MAS}。与单一智能体相比，多智能体系统在问题分解、信息集成、容错冗余及并行处理等方面具有显著优势~\cite{Stone2000MultiAgent}。
+多智能体系统（Multi-Agent System,\allowbreak MAS）是由多个具有自主能力的智能体（Agent）组成的计算系统，智能体之间通过协作完成复杂任务~\cite{Wooldridge2009MAS}。与单一智能体相比，多智能体系统在问题分解、信息集成、容错冗余及并行处理等方面具有显著优势~\cite{Stone2000MultiAgent}。
 
 智能体的角色定义是多智能体系统设计的基础~\cite{Kraus2008AgentRoles}。每个智能体通常被赋予特定的角色，承担特定的功能职责。在软件工程应用场景中，常见的角色包括分析型Agent（负责理解需求、分析问题）、规划型Agent（负责制定执行计划、分解任务）、执行型Agent（负责具体操作的实施）、验证型Agent（负责检查结果正确性）及协调型Agent（负责管理多个Agent的协作流程）~\cite{Wu2023AutoGen}。
 

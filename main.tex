@@ -35,8 +35,8 @@
     author = 王穆祺,
     studentId = 1120222608,
     supervisor = 赵三元,
-    keywords = {北京理工大学；本科生；毕业设计（论文）——请在“main.tex”开头设置},
-    keywordsEn = {BIT; Undergraduate; Graduation Project (Thesis)},
+    keywords = {回归测试；多智能体系统；代码变更分析；大语言模型；测试用例生成；软件测试自动化},
+    keywordsEn = {regression testing; multi-agent system; code change analysis; large language model; automated test generation; software testing automation},
     % 如果你的毕设为校外毕设，请将下面这一行语句解除注释（删除第一个百分号字符）并填写你的校外毕设导师名字
     % externalSupervisor = 左偏树,
   },
@@ -65,7 +65,7 @@
   tick label style={font=\fontsize{9}{11}\selectfont},
   label style={font=\fontsize{10}{12}\selectfont},
   legend style={font=\fontsize{8}{10}\selectfont}}
-\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, patterns}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, calc, patterns, shadows, fit, backgrounds}
 \tikzset{
   process/.style={rectangle, draw, rounded corners, minimum width=2.5cm, minimum height=0.85cm, align=center},
   io/.style={rectangle, draw, dashed, rounded corners, minimum width=2.2cm, minimum height=0.75cm, align=center},
@@ -82,6 +82,10 @@
 % 如果不需要，直接删除即可。
 \usepackage{listings}
 
+\setlength{\emergencystretch}{4.5em}
+\makeatletter
+\g@addto@macro\UrlBreaks{\do\_}
+\makeatother
 
 % 大部分关于参考文献样式的修改，都可以通过此处的选项进行配置。
 % 详情请搜索「biblatex-gb7714-2015 文档」进行阅读。
@@ -100,8 +104,7 @@
 % 参考文献引用文件位于 misc/ref.bib
 \addbibresource{misc/ref.bib}
 
-% gb7714-2015 中 \cite 默认为上标式标注；若需正文行内方括号序号 [1]，与 \parencite 一致：
-\AtBeginDocument{\let\cite\parencite}
+% gb7714-2015 中 \cite 默认为上标式序号标注（右上角）。若个别处需正文行内方括号 [1]，请改用 \parencite。
 
 % 若要按计算机学院要求，添加“北京理工大学”水印，请参考
 % https://bithesis.bitnp.net/faq/watermark.html

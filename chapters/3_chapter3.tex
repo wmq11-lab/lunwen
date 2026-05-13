@@ -44,9 +44,10 @@
 
 \begin{figure}[htbp]
     \centering
+    \resizebox{\linewidth}{!}{%
     \begin{tikzpicture}[
-        node distance=1.6cm and 0.7cm,
-        minimum height=0.8cm,
+        node distance=1.2cm and 0.55cm,
+        minimum height=0.75cm,
         font=\small,
         >=Stealth
     ]
@@ -78,15 +79,18 @@
     
     % 标注
     \node [below=of input, yshift=0.3cm, font=\footnotesize] {Unified Diff};
-    \node [above=of output, yshift=-0.3cm, font=\footnotesize] {impact\_result.json};
-    \end{tikzpicture}
+    \end{tikzpicture}%
+    }
     \caption{基于LangGraph多Agent工作流的影响分析总体架构}
     \label{fig:impact_analysis_architecture}
 \end{figure}
 
-系统接受Git提交产生的Unified Diff格式代码变更作为输入。在CodeChangeAgent的ingest\_change一步中，完成了多个核心子任务：Unified Diff解析、符号级变更分析（change\_analysis）、以及变更解构图（ChangeGraph）的构建。ingest\_change步骤的输出直接写入共享状态WorkflowState中，供后续Agent读取。
+系统接受Git提交产生的\allowbreak Unified Diff格式代码变更作为输入。在\allowbreak\texttt{CodeChangeAgent}的\texttt{ingest\_change}一步中，完成了多个核心子任务：Unified Diff解析、符号级变更分析（\texttt{change\_analysis}）、\allowbreak 以及变更解构图（\texttt{ChangeGraph}）的构建。\texttt{ingest\_change}步骤的输出直接写入共享状态\allowbreak\texttt{WorkflowState}中，供后续\allowbreak Agent读取。
 
-具体而言，ingest\_change的内部处理流程包含以下三个核心环节：首先通过parse\_unified\_diff解析Diff文本，提取变更文件列表（changed\_files）和每个文件的变更块元数据（diff\_hunks）；然后对每个变更文件进行符号级分析，构建ChangeRecord列表（change\_analysis）；最后基于变更实体构建变更解构图（change\_graph），建立变更符号与影响种子（impact\_seeds）之间的关联。
+具体而言，\texttt{ingest\_change}的内部处理流程包含以下三个核心环节：\allowbreak
+首先通过\texttt{parse\_unified\_diff}解析Diff文本，提取变更文件列表（\texttt{changed\_files}）和每个文件的变更块元数据（\texttt{diff\_hunks}）；\allowbreak
+然后对每个变更文件进行符号级分析，构建\texttt{ChangeRecord}列表（\texttt{change\_analysis}）；\allowbreak
+最后基于变更实体构建变更解构图（\texttt{change\_graph}），建立变更符号与影响种子（\texttt{impact\_seeds}）之间的关联。
 
 ProjectProbeAgent探查项目的代码结构信息，补充实体间的依赖关系上下文。ImpactAnalysisAgent是核心影响分析模块，它读取WorkflowState中的change\_analysis、change\_graph等共享状态，执行语义单元建模与影响传播推理，输出包含影响图（impact\_graph）、语义单元目录（semantic\_units\_catalog）、测试计划（impact\_test\_plan）和高风险项（top\_risks）的结构化结果。
 
@@ -216,7 +220,7 @@ Change Graph采用有向图结构，其节点和边的定义如下：
     \item \textbf{test\_focus}：符号节点指向focus节点，表示该符号关联的测试关注点。
 \end{itemize}
 
-节点与边的权重（weight）反映关联的紧密程度，范围为$[0, 1]$。例如，\textbf{contains\_change}边的权重通常设为1.0，表示直接变更关系；\textbf{emits\_seed}边的权重设为0.85，表示符号对种子的发射强度。
+节点与边的权重（weight）反映关联的紧密程度，范围为$[0, 1]$。例如，\textbf{contains\_change}边的权重通常设为$1.0$，表示直接变更关系；\textbf{emits\_seed}边的权重设为$0.85$，表示符号对种子的发射强度。
 
 \subsection{变更解构图构建方法}
 Change Graph的构建在ingest\_change步骤中完成，具体算法如下：
@@ -279,7 +283,10 @@ Change Graph的构建在ingest\_change步骤中完成，具体算法如下：
 ASU的形式化定义如下：
 
 \[
-ASU = (id, type, risk\_score, priority\_score, call\_chain, downstream, upstream, edge\_types)
+\begin{aligned}
+ASU = {}& (id, type, risk\_score, priority\_score, call\_chain, \\
+& downstream, upstream, edge\_types)
+\end{aligned}
 \]
 
 其中，各字段的含义为：
@@ -304,7 +311,7 @@ ASU = (id, type, risk\_score, priority\_score, call\_chain, downstream, upstream
 \subsection{语义标签体系}
 语义标签（semantic\_tags）是变更实体的重要属性，用于描述代码变更的语义特征。本研究定义的语义标签集合如前述ChangeRecord定义所示。
 
-语义标签在语义单元提取过程中起关键作用：从ChangeRecord的impact\_seeds和semantic\_tags出发，通过规则映射推断语义单元类型。例如，\textsf{api\_signature\_changed}和\textsf{dependency\_call\_changed}标签映射为api类型，\textsf{input\_validation\_added}、\textsf{null\_check\_added}、\textsf{exception\_handling\_changed}映射为exception类型，\textsf{logic\_branch\_changed}、\textsf{return\_value\_changed}映射为data\_processing类型。
+语义标签在语义单元提取过程中起关键作用：从ChangeRecord的impact\_seeds和semantic\_tags出发，通过规则映射推断语义单元类型。例如，\textsf{api\_signature\_changed}和\allowbreak\textsf{dependency\_call\_changed}标签映射为api类型；\textsf{input\_validation\_added}、\allowbreak\textsf{null\_check\_added}、\allowbreak\textsf{exception\_handling\_changed}映射为exception类型；\textsf{logic\_branch\_changed}、\allowbreak\textsf{return\_value\_changed}映射为data\_processing类型。
 
 每个语义单元类型还关联一组测试关注点（test\_focus），通过规则派生：
 \begin{itemize}
@@ -326,7 +333,7 @@ ASU = (id, type, risk\_score, priority\_score, call\_chain, downstream, upstream
     \item 对候选进行去重与合并，按语义单元ID聚合来自不同符号的相同语义能力。
 \end{enumerate}
 
-\textbf{LLM推断是条件触发的可选增强}：在默认配置下（used\_llm: False），系统使用纯规则驱动的方法生成语义标签。LLM推断仅在环境变量MUTIAGENT\_IMPACT\_LLM\_REFINE启用时触发，用于对语义标签进行精细化调整。这种设计确保了主流场景下的分析效率，同时保留了语义增强的可能性。
+\textbf{LLM推断是条件触发的可选增强}：在默认配置下（\texttt{used\_llm:\allowbreak False}），系统使用纯规则驱动的方法生成语义标签。LLM推断仅在环境变量\path{MUTIAGENT_IMPACT_LLM_REFINE}启用时触发，用于对语义标签进行精细化调整。这种设计确保了主流场景下的分析效率，同时保留了语义增强的可能性。
 
 语义单元提取与归类的完整流程如下：
 
@@ -352,7 +359,7 @@ ASU = (id, type, risk\_score, priority\_score, call\_chain, downstream, upstream
 具体传播过程如下：
 
 \begin{enumerate}
-    \item 构建种子名称索引（\_seed\_occurrence\_index）：遍历所有变更记录的impact\_seeds，建立种子名称（去噪后）到(文件路径, 符号ID)的映射。
+    \item 构建种子名称索引（\path{_seed_occurrence_index}）：遍历所有变更记录的\path{impact_seeds}，建立种子名称（去噪后）到(文件路径, 符号ID)的映射。
     \item 对每个语义单元，解析其关联符号的seed名称。
     \item 在索引中查找同名seed的其他出现位置，建立跨符号关联。
     \item 按关联强度（优先同文件，其次跨文件）保留最多5个下游符号。
@@ -376,13 +383,16 @@ risk = change\_weight(intent) \times decay^{depth} \times semantic\_weight(type)
     \item $change\_weight(intent)$：变更意图权重，BUG\_FIX为1.0，FEATURE为0.74，REFACTOR为0.58。
     \item $decay = 0.88^{max(0, depth)}$：基于传播深度的指数衰减因子。
     \item $semantic\_weight(type)$：语义类型权重，config为1.1，exception为1.14，api为1.02，data\_processing为0.76。
-    \item $tag\_risk(tags)$：语义标签微调因子，根据是否包含null\_check\_added、input\_validation\_added、exception\_handling\_changed、logic\_branch\_changed、api\_signature\_changed等标签进行累乘（上限1.12）。
+    \item $tag\_risk(tags)$：语义标签微调因子，根据是否包含\path{null_check_added}、\allowbreak\path{input_validation_added}、\allowbreak\path{exception_handling_changed}、\allowbreak\path{logic_branch_changed}、\allowbreak\path{api_signature_changed}等标签进行累乘（上限1.12）。
 \end{itemize}
 
 优先级评分（priority\_score）的计算公式为：
 
 \[
-raw\_priority = risk \times change\_mult \times centrality\_mult \times \log(1 + refs) \times integration\_mult
+\begin{aligned}
+raw\_priority = {}& risk \times change\_mult \times centrality\_mult \\
+& \times \log(1 + refs) \times integration\_mult
+\end{aligned}
 \]
 
 \[

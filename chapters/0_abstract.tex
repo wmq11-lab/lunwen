@@ -6,13 +6,13 @@
 % 中英文摘要章节
 \begin{abstract}
 % 中文摘要正文从这里开始
-回归测试是保障软件迭代质量的关键环节，然而现有方法在变更感知精准度、测试生成效率与用例质量之间难以取得平衡。传统基于搜索或变异的自动化测试工具缺乏对代码变更语义的理解，生成的测试用例缺乏针对性；单Agent方案虽能利用大语言模型生成高质量用例，但存在用例冗余、缺乏质量闭环等问题。
+随着持续集成与敏捷开发模式的广泛应用，软件系统面临代码变更频繁、迭代周期缩短以及回归测试成本持续增长等问题。传统回归测试方法主要依赖人工经验或基于覆盖率的测试选择策略，难以准确理解代码变更的真实语义，容易出现测试冗余、影响范围识别不准确以及测试生成效率不足等问题。与此同时，现有基于大语言模型的测试生成方法虽然能够提升测试代码质量与生成能力，但普遍缺乏结构化约束与多阶段协同机制，导致生成结果稳定性与工程可用性不足。
 
-本文提出并实现了一个面向代码变更的多智能体回归测试用例生成系统。该系统以LangGraph为编排框架，协调12个专业化Agent节点，形成"规则为主、LLM为辅"的混合架构：代码变更解析Agent以Tree-sitter和启发式规则提取变更实体与符号级分析；影响分析Agent基于变更解构图（file/symbol/seed/focus四类节点）与语义单元驱动的seed/tag关联实现精准影响传播推理；测试生成Agent通过compile校验—LLM重试—占位兜底三重机制保障用例可执行性；测试修复Agent以语法/导入/已知模式修复形成闭环。各模块通过可配置开关灵活启用，支持效率与效果偏好调整。
+针对上述问题，本文提出一种面向代码变更的多智能体回归测试用例生成方法，构建了融合代码语义分析、影响传播推理与测试自修复机制的智能化测试生成框架。系统基于 LangGraph 构建多智能体协同工作流，通过代码变更解析、项目结构探查、影响分析、测试规划、测试生成、测试修复与结果评估等多个 Agent 的协同运行，实现从代码变更输入到回归测试输出的自动化闭环。为提高变更理解能力，本文引入基于 AST 与 Tree-sitter 的结构化代码解析方法，将文本级 Diff 转换为符号级变更表示；在影响分析阶段，设计变更解构图与语义单元模型，通过 \texttt{seed/tag} 驱动的启发式传播机制实现变更影响范围推理；在测试生成阶段，采用``规则约束 + 大语言模型增强''的混合策略，并结合编译校验、自动修复与失败重试机制，提高测试用例的可执行性与稳定性。
 
-在typer项目上的实验结果表明，本文方法在变更感知场景下实现了93\%--96\%的测试压缩率和78\%--96\%的执行时间缩减率，Bug检测率达90\%而基线方法均为0\%。覆盖率效率比（每用例覆盖率贡献）是Single-Agent的1.33--1.85倍，utils模块上时间效率比达2.2倍。消融实验验证了各组件的不可替代性：移除LLM使变更覆盖率下降56.8\%，移除TestRepair使通过率从72.63\%骤降至37.86\%。
+本文在开源 Python 项目typer的多个模块上进行了实验验证，并与传统测试生成工具及单智能体方案进行对比。实验结果表明，所提出的方法能够有效降低回归测试执行规模与时间开销，在变更覆盖率、缺陷检测能力以及测试效率等指标上均表现出较好的综合性能。消融实验进一步验证了影响分析、测试修复与多智能体协同机制对系统整体性能的重要作用。
 
-\textbf{关键词：}回归测试；多智能体系统；代码变更影响分析；大语言模型；测试用例自动生成
+本研究为代码变更驱动的软件测试自动化提供了一种新的实现思路，对提升持续集成场景下的测试智能化与工程实用性具有一定参考价值。
 
 \end{abstract}
 
@@ -22,12 +22,13 @@
 % 英文摘要章节
 \begin{abstractEn}
 % 英文摘要正文从这里开始
-Regression testing is a critical环节 in safeguarding software quality during iterative development. However, existing methods struggle to balance change-aware precision, test generation efficiency, and test case quality. Traditional search-based or mutation-based automated testing tools lack understanding of code change semantics, producing tests with insufficient targeting. Single-agent approaches leverage large language models (LLMs) to generate high-quality cases but suffer from case redundancy and the absence of a quality assurance loop.
+With the widespread adoption of continuous integration and agile development practices, modern software systems face increasingly frequent code changes, shorter release cycles, and rapidly growing regression testing costs. Traditional regression testing approaches mainly rely on manual experience or coverage-based test selection strategies, which often fail to accurately capture the semantic impact of code changes, leading to redundant testing, inaccurate impact analysis, and low test generation efficiency. Although recent large language model (LLM)-based testing methods have improved the quality and generation capability of test cases, most existing approaches still lack structured constraints and collaborative reasoning mechanisms, resulting in limited stability and engineering applicability.
 
-This thesis proposes and implements a multi-agent regression test case generation system oriented toward code changes. The system employs LangGraph as the orchestration framework, coordinating 12 specialized agent nodes in a hybrid ``rules-primary, LLM-augmented'' architecture. The code change analysis agent extracts change entities and symbol-level analysis using Tree-sitter and heuristic rules. The impact analysis agent achieves precise impact propagation reasoning based on a change decomposition graph (with four node types: file, symbol, seed, and focus) and semantic unit-driven seed/tag association. The test generation agent ensures case executability through a three-tier mechanism: compile verification, LLM retry, and placeholder fallback. The test repair agent forms a closed loop with syntax, import, and known-pattern fixes. All modules can be flexibly enabled via configurable switches, supporting preference-based adjustment between efficiency and effectiveness.
+To address these challenges, this thesis proposes a multi-agent regression test case generation method for code changes, and develops an intelligent testing framework integrating semantic code analysis, impact propagation reasoning, and automated test self-repair mechanisms. The system adopts LangGraph as the orchestration framework to coordinate multiple specialized agents, including code change parsing, project structure probing, impact analysis, test planning, test generation, test repair, and evaluation agents, thereby forming an automated closed-loop workflow from code changes to regression test outputs.
 
-Experimental results on the typer project demonstrate that the proposed method achieves 93\%--96\% test compression rates and 78\%--96\% execution time reduction rates in change-aware scenarios, with a bug detection rate of 90\% compared to 0\% for all baselines. The coverage efficiency ratio (coverage contribution per test case) is 1.33--1.85 times that of the single-agent approach, and the time efficiency ratio on the utils module reaches 2.2 times. Ablation experiments verify the indispensability of each component: removing LLM reduces change coverage by 56.8\%, and removing TestRepair drops the pass rate from 72.63\% to 37.86\%.
+To improve change understanding capability, this work introduces a structured code analysis approach based on Abstract Syntax Trees (AST) and Tree-sitter, transforming text-level diffs into symbol-level change representations. During impact analysis, a change decomposition graph and semantic unit model are designed to support seed/tag-driven heuristic impact propagation reasoning. In the test generation stage, a hybrid strategy combining rule-based constraints and LLM-enhanced generation is employed. In addition, compile verification, automated repair, and retry mechanisms are integrated to improve the executability and robustness of generated test cases.
 
-\textbf{Keywords:} regression testing; multi-agent system; code change impact analysis; large language model; automated test case generation
+Experiments conducted on several real-world open-source Python projects demonstrate that the proposed method can effectively reduce regression testing scale and execution overhead while achieving competitive performance in change coverage, defect detection capability, and testing efficiency. Ablation studies further verify the importance of impact analysis, automated repair, and multi-agent collaboration mechanisms to the overall system effectiveness.
 
+This research provides a new solution for code change-driven software testing automation and offers practical value for improving intelligent regression testing in continuous integration environments.
 \end{abstractEn}

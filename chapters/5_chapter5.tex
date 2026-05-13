@@ -7,7 +7,7 @@
 \chapter{系统测试与实验分析}
 \label{chap:experiment}
 
-为了全面评估本文提出的多智能体回归测试用例生成系统的性能与效果，本章设计并开展了系统性的实验与分析工作。
+为了全面评估本文提出的多智能体回归测试用例生成系统的性能与效果，本章围绕\textbf{变更感知测试对比}与\textbf{消融实验}展开系统性实验与分析。
 
 % PGFPlots全局设置
 \pgfplotsset{
@@ -31,7 +31,15 @@
             {fill=white, draw=black, very thin, postaction={pattern=crosshatch}},
             {fill=white, draw=black, very thin, postaction={pattern=dots}},
         }
-    }
+    },
+    % 分组 ybar：图例使用面积块渲染，避免「外框+填充」看起来像两根柱子
+    /pgfplots/grouped ybar legend/.style={
+        area legend,
+        legend image code/.code={%
+            \draw[##1, line width=0.25pt, draw=black]
+                (0pt,-0.11em) rectangle (7.5pt,0.23em);%
+        },
+    },
 }
 
 \section{实验环境与数据集}
@@ -60,9 +68,7 @@
 \subsection{实验数据集}
 \label{ssec:dataset}
 
-\textbf{（1）单元测试生成数据集。}选取Python开源项目typer（版本0.9.0）的两个核心模块：utils模块（约850行代码）和core模块（约1200行代码）。
-
-\textbf{（2）变更感知测试数据集。}从typer项目Git提交历史中选取多个真实提交。
+\textbf{实验数据集。}选取Python开源项目typer（版本0.9.0），从其Git提交历史中选取多个真实提交作为变更感知测试的评测对象；实验环境与基线工具配置见下文。
 
 \subsection{Baseline工具}
 \label{ssec:baseline_tools}
@@ -144,29 +150,29 @@
 \end{equation}
 其中，$T_{selected}$为选中测试用例集的执行时间，$T_{full}$为全量测试用例集的执行时间。该指标反映测试选择在时间成本上的优化效果。
 
+\subsection{衍生效率指标}
+\label{ssec:cer_ter_metrics}
+
+为从``单位用例贡献''与``单位时间贡献''两个角度刻画生成效率，可定义以下衍生指标（多用于对比分析）：
+
+\textbf{（1）覆盖率效率比（CER）}
+\begin{equation}
+    CER = \frac{C_{stmt}}{N_{test}} \times 100\%
+\end{equation}
+其中$C_{stmt}$为语句覆盖率，$N_{test}$为生成的测试用例数。
+
+\textbf{（2）时间效率比（TER）}
+\begin{equation}
+    TER = \frac{C_{stmt}}{T_{gen}} \times 100\%/s
+\end{equation}
+其中$T_{gen}$为生成耗时（秒）。亦可定义\textbf{综合效率指数}为$\sqrt{CER \times TER}$，用于综合比较不同工具的性价比。
+
 \section{对比实验设计}
 \label{sec:exp_design}
 
-为全面评估多智能体回归测试用例生成系统的性能，本文设计了层次化的对比实验体系，从两个维度考察系统的测试生成能力。
+为评估多智能体回归测试用例生成系统在\textbf{代码变更场景}下的能力，本文以typer仓库中多组真实Git提交为主对比实验对象，从变更覆盖、缺陷发现与测试压缩等维度与各基线工具进行对比；系统评价指标与衍生效率指标（CER、TER）见第~\ref{sec:metrics}节。
 
-\subsection{实验A：单模块测试生成对比}
-\label{sssec:expA_design}
-
-\textbf{实验目的：}评估系统在独立模块上的测试生成能力，对比各工具在静态模块级别的覆盖率、通过率和生成效率。
-
-\textbf{实验设置：}选取typer项目的两个核心模块——typer.utils（约850行代码）和typer.core（约1200行代码）作为测试目标，在这两个独立模块上运行各测试生成工具，对比其表现。
-
-\textbf{评估维度：}
-\begin{itemize}
-    \item 测试覆盖率（语句覆盖率、分支覆盖率）
-    \item 测试通过率
-    \item 测试生成效率（生成时间、执行时间）
-    \item 覆盖率效率比（CER）和时间效率比（TER）
-\end{itemize}
-
-该实验采用横向对比方式，考察各工具在\textbf{静态模块级}的测试生成能力。
-
-\subsection{实验B：多模块变更感知测试对比}
+\subsection{变更感知对比实验方案}
 \label{sssec:expB_design}
 
 \textbf{实验目的：}评估系统在代码变更场景下的变更感知测试生成能力，考察系统对Git提交中代码变更的敏感性和针对性。
@@ -187,480 +193,12 @@
     \item 测试压缩率与执行时间缩减率
 \end{itemize}
 
-该实验采用纵向对比方式，考察各工具在\textbf{变更感知级}的测试生成能力。
+该实验采用提交级对比方式，考察各工具在\textbf{变更感知级}的测试生成能力。
 
-\section{实验A——单模块测试生成对比}
-\label{sec:expA_results}
-
-本节汇报实验A的结果：在typer.utils和typer.core两个独立模块上，各测试生成工具的表现对比。
-
-\subsection{测试覆盖率对比}
-\label{ssec:expA_coverage}
-
-\begin{table}[htbp]
-    \centering
-    \caption{typer.utils模块代码覆盖率对比}
-    \label{tab:coverage_comparison_utils}
-    \begin{tabular}{lccccc}
-        \toprule
-        \textbf{工具} & \textbf{语句覆盖率(\%)} & \textbf{分支覆盖率(\%)} & \textbf{测试通过率(\%)} & \textbf{用例数} & \textbf{生成时间(s)} \\
-        \midrule
-        Pynguin & 76.80 & 50.00 & 78.94 & 19 & 635.68 \\
-        Test4Py & 57.89 & 44.12 & 100.00 & 6 & 388.45 \\
-        Single-Agent & \textbf{90.91} & \textbf{76.47} & 100.00 & 38 & 47.71 \\
-        本文方法 & 88.89 & 61.76 & 75.90 & 28 & \textbf{20.94} \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\begin{table}[htbp]
-    \centering
-    \caption{typer.core模块代码覆盖率对比}
-    \label{tab:coverage_comparison_core}
-    \begin{tabular}{lccccc}
-        \toprule
-        \textbf{工具} & \textbf{语句覆盖率(\%)} & \textbf{分支覆盖率(\%)} & \textbf{测试通过率(\%)} & \textbf{用例数} & \textbf{生成时间(s)} \\
-        \midrule
-        Pynguin & 48.61 & 21.12 & 36.67 & 30 & 680.75 \\
-        Test4Py & 14.84 & 3.52 & 100.00 & 6 & 588.37 \\
-        Single-Agent & \textbf{90.09} & \textbf{75.35} & 100.00 & 80 & 152.80 \\
-        本文方法 & 79.51 & 68.08 & 70.10 & 38 & 195.255 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\begin{figure}[htbp]
-\centering
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(a) 语句覆盖率}
-\label{fig:statement-coverage}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.42\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0, ymax=100,
-    enlarge y limits={upper, 0.22},
-    ylabel={覆盖率 (\%)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt},
-]
-\addplot+ coordinates {(1, 76.8) (2, 48.61)};
-\addplot+ coordinates {(1, 57.89) (2, 14.84)};
-\addplot+ coordinates {(1, 90.91) (2, 90.09)};
-\addplot+ coordinates {(1, 88.89) (2, 79.51)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(b) 分支覆盖率}
-\label{fig:branch-coverage}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.42\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0, ymax=100,
-    enlarge y limits={upper, 0.22},
-    ylabel={覆盖率 (\%)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt},
-]
-\addplot+ coordinates {(1, 50) (2, 21.12)};
-\addplot+ coordinates {(1, 44.12) (2, 3.52)};
-\addplot+ coordinates {(1, 76.47) (2, 75.35)};
-\addplot+ coordinates {(1, 61.76) (2, 68.08)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\caption{各工具在不同模块上的覆盖率对比}
-\end{figure}
-
-\textbf{语句覆盖率分析：}从绝对覆盖率看，Single-Agent表现最佳（utils: 90.91\%, core: 90.09\%），本文方法紧随其后（utils: 88.89\%, core: 79.51\%）。然而，若从\textbf{覆盖率效率}角度重新审视，则呈现出不同的结论：在typer.utils模块上，本文方法以28个测试用例获得88.89\%覆盖率，单位用例覆盖率贡献为3.17\%；而Single-Agent虽然达到90.91\%的覆盖率，但消耗了38个用例，单位用例贡献仅为2.39\%。这意味着本文方法在用例效率上比Single-Agent高出32.6\%。
-
-在typer.core模块上，这一优势更加显著：本文方法以38个用例获得79.51\%覆盖率，单位用例贡献2.09\%；而Single-Agent需要80个用例才达到90.09\%，单位用例贡献仅1.13\%。本文方法的用例效率是Single-Agent的\textbf{1.85倍}。这一结果表明，多Agent协作虽然在绝对覆盖率上略逊，但在用例利用率这一关键指标上具有明显优势。
-
-\textbf{分支覆盖率分析：}Single-Agent在两个模块上的分支覆盖率分别为76.47\%和75.35\%，均达到最高水平。本文方法在typer.core上的分支覆盖率（68.08\%）反而高于typer.utils（61.76\%），说明本文方法在处理复杂模块时对分支的覆盖能力更加稳定。
-
-\textbf{测试用例数量与效率权衡分析：}Test4Py仅生成6个测试用例，通过率100\%，但覆盖率极低（utils: 57.89\%, core: 14.84\%）。这种策略生成的是"保守型"测试——只测试最确定能通过的场景。Single-Agent生成最多用例（38-80个），但用例数量与覆盖率并非线性关系：utils模块用例数仅为core的47.5\%，但覆盖率却更高。
-
-本文方法的策略是"以质换量"——以较少的测试用例（28-38个）换取可比的覆盖率，同时通过影响分析确保变更代码的覆盖。这体现了"精准测试"的思想。
-
-\subsection{测试通过率对比}
-\label{ssec:expA_passrate}
-
-图~\ref{fig:test-pass-rate}展示了各工具在不同模块上的测试通过率对比。
-
-\begin{figure}[htbp]
-\centering
-\captionof{figure}{测试通过率对比}
-\label{fig:test-pass-rate}
-\begin{tikzpicture}
-\begin{axis}[
-    width=0.7\textwidth,
-    height=0.4\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0, ymax=105,
-    enlarge y limits={upper, 0.14},
-    ylabel={通过率 (\%)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt},
-]
-\addplot+ coordinates {(1, 78.94) (2, 36.67)};
-\addplot+ coordinates {(1, 100) (2, 100)};
-\addplot+ coordinates {(1, 100) (2, 100)};
-\addplot+ coordinates {(1, 75.9) (2, 70.1)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\caption{测试通过率对比}
-\end{figure}
-
-Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方法的通过率在两个模块上分别为75.90\%和70.10\%。表面上看，这一通过率似乎不如基线方法，但从测试工程角度分析，更低的通过率可能反映了更深层的测试能力。
-
-\textbf{通过率与覆盖率的关系解读：}测试用例的通过率与覆盖率之间存在内在权衡。100\%通过率意味着测试用例只验证最确定的代码路径，这限制了覆盖的广度；本文方法约25\%的未通过率，换来的是对更复杂边界条件的探索尝试。这些"失败"的测试用例揭示了潜在的问题场景，是日后回归测试发现缺陷的关键。
-
-\textbf{Pynguin的低通过率分析：}Pynguin在core模块的通过率仅为36.67\%，远低于其他工具。这反映了基于搜索的测试生成方法的固有局限：生成的测试用例可能尝试了无效的输入组合或错误的断言逻辑。
-
-\subsection{测试效率对比}
-\label{ssec:expA_efficiency}
-
-\begin{figure}[htbp]
-\centering
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(a) 生成时间}
-\label{fig:generation-time}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.42\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0,
-    ylabel={时间 (秒)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    enlarge y limits={upper, 0.18},
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt, rotate=35},
-]
-\addplot+ coordinates {(1, 635.68) (2, 680.75)};
-\addplot+ coordinates {(1, 388.45) (2, 588.37)};
-\addplot+ coordinates {(1, 47.71) (2, 152.8)};
-\addplot+ coordinates {(1, 20.94) (2, 195.255)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(b) 效率-覆盖率散点图（对数X轴）}
-\label{fig:efficiency-scatter}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.42\textwidth,
-    xlabel={生成时间 (秒, 对数刻度)},
-    ylabel={覆盖率 (\%)},
-    xmode=log,
-    log basis x={10},
-    xmin=10, xmax=1000,
-    ymin=0, ymax=100,
-    clip=false,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=1,
-        at={(0.5,1.06)},
-        anchor=south,
-    },
-]
-% 高效高覆盖理想区域（浅灰背景）
-\addplot[draw=none, fill=gray!10] coordinates {(10, 60) (10, 100) (100, 100) (100, 60)} \closedcycle;
-\node[anchor=south west, font=\fontsize{5}{7}\selectfont, color=gray!60] at (axis cs:10, 100) {高效高覆盖区};
-
-\addplot[only marks, mark=square*, mark size=2.5pt, fill=black!80, draw=black] 
-    coordinates {(635.68, 76.8) (680.75, 48.61)};
-\addlegendentry{Pynguin}
-\addplot[only marks, mark=triangle*, mark size=2.5pt, fill=white, draw=black] 
-    coordinates {(388.45, 57.89) (588.37, 14.84)};
-\addlegendentry{Test4Py}
-\addplot[only marks, mark=*, mark size=2.5pt, fill=white, draw=black, postaction={pattern=north east lines}] 
-    coordinates {(47.71, 90.91) (152.8, 90.09)};
-\addlegendentry{Single}
-\addplot[only marks, mark=diamond*, mark size=2.5pt, fill=black!50, draw=black] 
-    coordinates {(20.94, 88.89) (195.255, 79.51)};
-\addlegendentry{Ours}
-
-% 添加模块标签
-\node[anchor=north west, font=\fontsize{5}{7}\selectfont] at (axis cs:635.68, 76.8) {u};
-\node[anchor=south west, font=\fontsize{5}{7}\selectfont] at (axis cs:680.75, 48.61) {c};
-\node[anchor=north west, font=\fontsize{5}{7}\selectfont] at (axis cs:388.45, 57.89) {u};
-\node[anchor=south west, font=\fontsize{5}{7}\selectfont] at (axis cs:588.37, 14.84) {c};
-\node[anchor=south west, font=\fontsize{5}{7}\selectfont] at (axis cs:47.71, 90.91) {u};
-\node[anchor=north west, font=\fontsize{5}{7}\selectfont] at (axis cs:152.8, 90.09) {c};
-\node[anchor=south west, font=\fontsize{5}{7}\selectfont] at (axis cs:20.94, 88.89) {u};
-\node[anchor=north west, font=\fontsize{5}{7}\selectfont] at (axis cs:195.255, 79.51) {c};
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\caption{生成时间与效率-覆盖率散点图}
-\end{figure}
-
-\textbf{效率象限分析：}在图~\ref{fig:efficiency-scatter}中，将坐标系划分为四个象限：
-\begin{itemize}
-    \item \textbf{高效高覆盖（理想区）}：生成时间<100秒，覆盖率>60\%
-    \item \textbf{低效高覆盖}：生成时间>100秒，覆盖率>60\%
-    \item \textbf{高效低覆盖}：生成时间<100秒，覆盖率<60\%
-    \item \textbf{低效低覆盖（不理想区）}：生成时间>100秒，覆盖率<60\%
-\end{itemize}
-
-本文方法的utils结果（20.94秒，88.89\%）位于高效高覆盖的理想区左上角，是所有8个数据点中最接近"又快又好"目标的。Single-Agent的两个结果位于低效高覆盖区，表明其以时间换取覆盖率。Test4Py/core结果（588.37秒，14.84\%）落在不理想区，说明在复杂模块上该方法既慢又无效。
-
-\begin{table}[htbp]
-    \centering
-    \caption{测试效率对比（单模块场景）}
-    \label{tab:efficiency_comparison}
-    \begin{tabular}{lcccccc}
-        \toprule
-        \textbf{工具} & \textbf{生成耗时(s)} & \textbf{执行耗时(s)} & \textbf{总耗时(s)} & \textbf{用例数} \\
-        \midrule
-        \multicolumn{5}{c}{\textbf{typer.utils模块}} \\
-        \midrule
-        Pynguin & 635.68 & 42 & 677.68 & 19 \\
-        Test4Py & 388.45 & 15 & 403.45 & 6 \\
-        Single-Agent & 47.71 & 38 & 85.71 & 38 \\
-        本文方法 & \textbf{20.94} & 18 & \textbf{38.94} & 28 \\
-        \midrule
-        \multicolumn{5}{c}{\textbf{typer.core模块}} \\
-        \midrule
-        Pynguin & 680.75 & 58 & 738.75 & 30 \\
-        Test4Py & 588.37 & 12 & 600.37 & 6 \\
-        Single-Agent & 152.80 & 85 & 237.80 & 80 \\
-        本文方法 & 195.255 & 42 & \textbf{237.255} & 38 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-在typer.utils模块上，本文方法的生成耗时仅为20.94秒，远低于Pynguin（635.68秒）和Test4Py（388.45秒），总耗时（38.94秒）为最短。生成效率是Pynguin的30倍，Test4Py的18.5倍。
-
-\subsection{覆盖率效率分析}
-\label{ssec:expA_cer_ter}
-
-为更全面地评估各工具的性价比，本节引入两项衍生指标：
-
-\textbf{定义1：覆盖率效率比（CER）}
-\begin{equation}
-    CER = \frac{C_{stmt}}{N_{test}} \times 100\%
-\end{equation}
-其中$C_{stmt}$为语句覆盖率，$N_{test}$为生成的测试用例数。CER衡量每个测试用例对覆盖率的平均贡献，反映测试用例的"质量密度"。
-
-\textbf{定义2：时间效率比（TER）}
-\begin{equation}
-    TER = \frac{C_{stmt}}{T_{gen}} \times 100\%/s
-\end{equation}
-其中$T_{gen}$为生成耗时（秒）。TER衡量每秒生成时间所贡献的覆盖率，反映工具的时间利用效率。
-
-\begin{table}[htbp]
-    \centering
-    \caption{覆盖率效率比（CER）与时间效率比（TER）对比}
-    \label{tab:cer_ter_comparison}
-    \begin{tabular}{lcccccc}
-        \toprule
-        \multirow{2}{*}{工具} & \multicolumn{2}{c}{CER (\%/用例)} & \multicolumn{2}{c}{TER (\%/s)} & \multicolumn{2}{c}{综合效率指数} \\
-        \cmidrule(lr){2-3} \cmidrule(lr){4-5} \cmidrule(lr){6-7}
-        & utils & core & utils & core & utils & core \\
-        \midrule
-        Pynguin & 4.04 & 1.62 & 0.12 & 0.07 & 0.48 & 0.11 \\
-        Test4Py & 9.65 & 2.47 & 0.15 & 0.03 & 1.45 & 0.07 \\
-        Single-Agent & 2.39 & 1.13 & 1.91 & 0.59 & 4.56 & 0.67 \\
-        本文方法 & 3.17 & 2.09 & 4.24 & 0.41 & \textbf{13.44} & 0.86 \\
-        \bottomrule
-    \end{tabular}
-\end{table}
-
-\textbf{综合效率指数} = $\sqrt{CER \times TER}$，用于综合评估工具的整体效率。
-
-\begin{figure}[htbp]
-\centering
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(a) 覆盖率效率比对比}
-\label{fig:cer-comparison}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.4\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0, ymax=12,
-    enlarge y limits={upper, 0.15},
-    ylabel={CER (\%/用例)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt},
-]
-\addplot+ coordinates {(1, 4.04) (2, 1.62)};
-\addplot+ coordinates {(1, 9.65) (2, 2.47)};
-\addplot+ coordinates {(1, 2.39) (2, 1.13)};
-\addplot+ coordinates {(1, 3.17) (2, 2.09)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\hfill
-\begin{minipage}[t]{0.47\textwidth}
-\centering
-\captionof{figure}{(b) 时间效率比对比}
-\label{fig:ter-comparison}
-\begin{tikzpicture}
-\begin{axis}[
-    width=1.0\textwidth,
-    height=0.4\textwidth,
-    ybar,
-    bar width=0.14,
-    ymin=0, ymax=5,
-    enlarge y limits={upper, 0.15},
-    ylabel={TER (\%/s)},
-    xtick={1,2},
-    xticklabels={utils, core},
-    enlarge x limits=0.48,
-    legend style={
-        font=\fontsize{5}{7}\selectfont,
-        fill=white,
-        draw=black!50,
-        legend columns=4,
-        at={(0.5,1.04)},
-        anchor=south,
-    },
-    blackwhite,
-    clip=false,
-    nodes near coords,
-    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.5pt},
-    every node near coord/.append style={anchor=south, yshift=2.5pt},
-]
-\addplot+ coordinates {(1, 0.12) (2, 0.07)};
-\addplot+ coordinates {(1, 0.15) (2, 0.03)};
-\addplot+ coordinates {(1, 1.91) (2, 0.59)};
-\addplot+ coordinates {(1, 4.24) (2, 0.41)};
-\legend{Pynguin, Test4Py, Single, Ours}
-\end{axis}
-\end{tikzpicture}
-\end{minipage}
-\caption{覆盖率效率比与时间效率比对比}
-\end{figure}
-
-\textbf{效率指标分析：}
-
-在typer.utils模块上，本文方法的综合效率指数达到\textbf{13.44}，是Single-Agent（4.56）的\textbf{2.95倍}，是Test4Py（1.45）的\textbf{9.27倍}。这一优势主要来源于两方面：
-\begin{itemize}
-    \item \textbf{极低的生成耗时}：20.94秒，远低于其他工具
-    \item \textbf{较高的覆盖率}：88.89\%，仅次于Single-Agent
-\end{itemize}
-
-在typer.core模块上，本文方法的综合效率指数（0.86）与Single-Agent（0.67）基本持平，但仍明显优于Pynguin（0.11）和Test4Py（0.07）。值得注意的是，core模块上Single-Agent的TER（0.59）高于本文方法（0.41），这说明在复杂模块上，Single-Agent的时间效率更高，但这是以2.1倍的用例数量（80 vs 38）为代价换来的。
-
-从"性价比"角度重新审视：在utils模块上，本文方法以最低的时间成本（20.94秒）获得了次高的覆盖率（88.89\%），实现了\textbf{速度与效果的平衡}；在core模块上，本文方法以不到一半的用例数量（38 vs 80）获得了可比的效率指数（0.86 vs 0.67），体现了\textbf{以质换量的精准策略}。
-
-\textbf{通过率与覆盖率的关系探讨：}Test4Py和Single-Agent在两个模块上均达到100\%的通过率，本文方法的通过率分别为75.90\%（utils）和70.10\%（core）。表面上看，100\%通过率似乎是优势，但从测试工程角度，更高的通过率可能意味着测试场景不够"激进"。本文方法的较低通过率（约25\%-30\%用例未通过）实际上反映了多Agent流水线在尝试覆盖更复杂边界条件时的探索，这些未通过的用例可能是日后发现回归缺陷的关键。
-
-\subsection{实验A小结}
-\label{ssec:expA_summary}
-
-实验A的核心发现如下：
-
-\textbf{（1）覆盖率表现：}Single-Agent在绝对覆盖率上略胜一筹（90.09\%-90.91\%），但本文方法（79.51\%-88.89\%）紧随其后。更重要的是，本文方法以更少的测试用例实现了可比的覆盖率，体现了"以质换量"的设计理念。
-
-\textbf{（2）效率优势显著：}本文方法在utils模块上的生成时间（20.94秒）是所有工具中最短的，仅为Pynguin的3.1\%、Test4Py的5.4\%。综合效率指数达到13.44，是Single-Agent的2.95倍。
-
-\textbf{（3）用例利用率高：}本文方法的覆盖率效率比（CER）在core模块上达到2.09\%/用例，是Single-Agent（1.13\%/用例）的1.85倍。这意味着每个测试用例的"贡献密度"更高。
-
-\textbf{（4）通过率的辩证解读：}本文方法的通过率（约70\%-76\%）虽低于100\%的基线方法，但这是有意为之的策略——通过探索更复杂的边界条件，为日后发现回归缺陷预留了可能性。
-
-总体而言，实验A验证了本文方法在\textbf{单模块静态测试生成}场景下的有效性和高效率，尤其在生成速度和用例利用率方面具有明显优势。
-
-\section{实验B——多模块变更感知测试对比}
+\section{变更感知测试对比实验}
 \label{sec:expB_results}
 
-本节汇报实验B的结果：在6个真实Git提交上，各测试工具的变更感知测试生成能力对比。
+本节汇报对比实验结果：在6个真实Git提交上，各测试工具的变更感知测试生成能力对比。
 
 \subsection{实验设计与提交选取}
 \label{ssec:expB_design_detail}
@@ -692,7 +230,7 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 
 \begin{sidewaystable}[htbp]
 \centering
-\caption{实验B：变更感知测试场景覆盖效果详细对比}
+\caption{变更感知测试场景覆盖效果详细对比}
 \label{tab:expB-coverage-summary}
 \resizebox{\textwidth}{!}{
 \begin{tabular}{lcccccccccccc}
@@ -734,12 +272,13 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.85\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.14,
+    bar width=0.11,
     ymin=0, ymax=80,
     ylabel={变更覆盖率 (\%)},
     xtick={1,2,3,4,5,6},
     xticklabels={f398fb1, 722a4fe, 74e0923, fd4241f, 3e37e01, 5bea9cf},
-    enlarge x limits=0.32,
+    enlarge x limits={abs=0.45},
+    enlarge y limits={upper, 0.14},
     clip=false,
     legend style={
         font=\fontsize{5}{7}\selectfont,
@@ -750,12 +289,14 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
         anchor=south,
     },
     blackwhite,
+    grouped ybar legend,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{4}{6}\selectfont, anchor=south, yshift=0.08cm},
+    nodes near coords style={font=\fontsize{3.2}{4}\selectfont, inner sep=0.35pt},
+    every node near coord/.append style={anchor=south, yshift=0.08cm},
 ]
-\addplot+ coordinates {(1, 15) (2, 36) (3, 44) (4, 44) (5, 40) (6, 23)};
-\addplot+ coordinates {(1, 20) (2, 11.1) (3, 11.11) (4, 15.11) (5, 15.11) (6, 10.42)};
-\addplot+ coordinates {(1, 66.67) (2, 50) (3, 62.5) (4, 70) (5, 25) (6, 27.08)};
+\addplot+[nodes near coords style={xshift=-5pt}] coordinates {(1, 15) (2, 36) (3, 44) (4, 44) (5, 40) (6, 23)};
+\addplot+[nodes near coords style={xshift=0pt}] coordinates {(1, 20) (2, 11.1) (3, 11.11) (4, 15.11) (5, 15.11) (6, 10.42)};
+\addplot+[nodes near coords style={xshift=5pt}] coordinates {(1, 66.67) (2, 50) (3, 62.5) (4, 70) (5, 25) (6, 27.08)};
 \legend{Single-Agent, Test4Py, 本文方法}
 \end{axis}
 \end{tikzpicture}
@@ -781,12 +322,12 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.6\textwidth,
     height=0.4\textwidth,
     ybar,
-    bar width=0.16,
+    bar width=0.12,
     ymin=0, ymax=120,
     ylabel={Bug检测率 / 压缩率 (\%)},
     xtick={1,2},
     xticklabels={Bug检测率, 平均压缩率},
-    enlarge x limits=0.52,
+    enlarge x limits={abs=0.55},
     legend style={
         font=\fontsize{5}{7}\selectfont,
         fill=white,
@@ -796,6 +337,7 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
         anchor=south,
     },
     blackwhite,
+    grouped ybar legend,
     clip=false,
 ]
 \addplot+ coordinates {(1, 0) (2, 95.11)};
@@ -850,10 +392,10 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 
 在变更感知测试场景下，本文方法的优势更加明显。生成耗时仅12秒，总耗时仅18秒，相比Pynguin（445秒）和Test4Py（224秒）有超过一个数量级的提升。这一优势来源于变更感知机制——只需分析变更代码而非全量代码，大幅减少了分析范围。
 
-\subsection{实验B小结}
+\subsection{变更感知对比实验小结}
 \label{ssec:expB_summary}
 
-实验B的核心发现如下：
+变更感知对比实验的核心发现如下：
 
 \textbf{（1）变更覆盖能力突出：}本文方法的平均变更覆盖率达50.21\%，是Single-Agent的1.65倍，Test4Py的3.64倍。尤其在小变更场景下（f398fb1、722a4fe），本文方法的覆盖优势更为明显。
 
@@ -863,7 +405,7 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
 
 \textbf{（4）效率全面领先：}变更感知场景下总耗时仅18秒，是Pynguin的24.7倍提升。变更覆盖精准度（47.43）是Single-Agent（28.84）的1.64倍。
 
-总体而言，实验B验证了本文方法在\textbf{变更感知测试}场景下的独特价值：不仅能精准定位变更代码，更能有效识别潜在的回归缺陷，实现"少而精"的测试策略。
+总体而言，上述结果验证了本文方法在\textbf{变更感知测试}场景下的独特价值：不仅能精准定位变更代码，更能有效识别潜在的回归缺陷，实现"少而精"的测试策略。
 
 \section{消融实验结果分析}
 \label{sec:ablation_results}
@@ -934,13 +476,13 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
     width=0.7\textwidth,
     height=0.35\textwidth,
     ybar,
-    bar width=0.24,
+    bar width=0.12,
     ymin=0, ymax=70,
-    enlarge y limits={upper, 0.12},
+    enlarge y limits={upper, 0.14},
+    enlarge x limits={abs=0.68},
     ylabel={贡献度 (\%)\footnote{贡献度=Full System值-消融配置值}},
     xtick={1,2,3},
     xticklabels={ImpactAnalysis, BugPattern, Retrieval},
-    enlarge x limits=0.36,
     legend style={
         font=\fontsize{5}{7}\selectfont,
         fill=white,
@@ -950,14 +492,15 @@ Test4Py和Single-Agent在两个模块上均达到100\%的通过率。本文方�
         anchor=south,
     },
     blackwhite,
+    grouped ybar legend,
     clip=false,
     nodes near coords,
-    nodes near coords style={font=\fontsize{5}{6}\selectfont, inner sep=0.5pt},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.35pt},
     every node near coord/.append style={anchor=south, yshift=2pt},
 ]
-\addplot+ coordinates {(1, 21.20) (2, 11.05) (3, 16.20)};
+\addplot+[nodes near coords style={xshift=-4pt}] coordinates {(1, 21.20) (2, 11.05) (3, 16.20)};
 \addlegendentry{变更覆盖率贡献}
-\addplot+ coordinates {(1, 56.67) (2, 60.00) (3, 20.00)};
+\addplot+[nodes near coords style={xshift=4pt}] coordinates {(1, 56.67) (2, 60.00) (3, 20.00)};
 \addlegendentry{新增函数覆盖率贡献}
 \end{axis}
 \end{tikzpicture}
@@ -1005,7 +548,7 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 在74e0923a04a4提交上，去掉TestRepair或Feedback后，变更覆盖率从79\%骤降至11.76\%，降幅达\textbf{85.1\%}。这一极端差异说明，自修复机制不仅提升了测试通过率，更重要的是通过迭代优化确保了关键变更代码被正确测试。
 
-两个消融配置（w/o TestRepair和w/o Feedback）在变更覆盖率上完全一致（28.92\%），但在测试通过率上略有差异（37.86\% vs 42.57\%）。这说明TestRepair更侧重于修复失败用例，而Feedback更侧重于质量反馈——两者协同才能实现72.63\%的最终通过率。
+两个消融配置（w/o TestRepair和w/o Feedback）在变更覆盖率上完全一致（28.92\%）\allowbreak，但在测试通过率上略有差异（37.86\% vs 42.57\%）。这说明TestRepair更侧重于修复失败用例，而Feedback更侧重于质量反馈——两者协同才能实现72.63\%的最终通过率。
 
 \begin{figure}[htbp]
 \centering
@@ -1016,12 +559,13 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
     width=0.55\textwidth,
     height=0.35\textwidth,
     ybar,
-    bar width=0.22,
+    bar width=0.13,
     ymin=0, ymax=60,
+    enlarge y limits={upper, 0.14},
     ylabel={贡献度 (百分点)},
     xtick={1,2},
     xticklabels={TestRepair, Feedback},
-    enlarge x limits=0.45,
+    enlarge x limits={abs=0.7},
     legend style={
         font=\fontsize{5}{7}\selectfont,
         fill=white,
@@ -1031,13 +575,15 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
         anchor=south,
     },
     blackwhite,
+    grouped ybar legend,
     clip=false,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{6}{8}\selectfont, anchor=south, yshift=0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.35pt},
+    every node near coord/.append style={anchor=south, yshift=0.1cm},
 ]
-\addplot+ coordinates {(1, 34.77) (2, 30.06)};
+\addplot+[nodes near coords style={xshift=-4.5pt}] coordinates {(1, 34.77) (2, 30.06)};
 \addlegendentry{通过率贡献}
-\addplot+ coordinates {(1, 27.97) (2, 27.97)};
+\addplot+[nodes near coords style={xshift=4.5pt}] coordinates {(1, 27.97) (2, 27.97)};
 \addlegendentry{覆盖率贡献}
 \end{axis}
 \end{tikzpicture}
@@ -1103,8 +649,10 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
         anchor=south,
     },
     blackwhite,
+    grouped ybar legend,
     nodes near coords,
-    every node near coord/.append style={font=\fontsize{6}{8}\selectfont, anchor=east, xshift=-0.1cm},
+    nodes near coords style={font=\fontsize{4}{5}\selectfont, inner sep=0.35pt},
+    every node near coord/.append style={anchor=west, xshift=0.05cm, yshift=-1.5pt},
 ]
 \addplot+ coordinates {(56.80, 1)};
 \addlegendentry{覆盖率贡献}
@@ -1142,9 +690,9 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 \textbf{（1）卓越的变更覆盖能力。}在变更感知测试场景下，本文方法的变更覆盖率平均达到50.21\%，是Single-Agent（30.33\%）的\textbf{1.65倍}，是Test4Py（13.81\%）的\textbf{3.64倍}。更重要的是，在全部6个测试提交中实现了\textbf{90\%的平均Bug检测率}，而其他工具均为0。这一数据直接证明：本文方法的变更覆盖是"有意义的覆盖"，能够有效识别潜在的代码缺陷。
 
-\textbf{（2）高效的测试生成效率。}在typer.utils模块上仅需20.94秒即可完成测试生成，相比Pynguin（635.68秒）和Test4Py（388.45秒）分别有\textbf{30倍和18.5倍}的效率提升。在变更感知测试场景下，总耗时仅18秒，是Pynguin（445秒）的\textbf{24.7倍}提升。时间效率比（TER）达到4.24\%/s，是Single-Agent（1.91\%/s）的\textbf{2.22倍}。
+\textbf{（2）高效的测试生成效率。}在变更感知测试场景下，本文方法端到端总耗时约18秒，相比Pynguin（445秒）与Test4Py（224秒）具有\textbf{数量级}优势，体现了面向变更分析的轻量化流水线在时效上的收益。
 
-\textbf{（3）测试用例精简高效。}在typer.core模块上，本文方法以38个测试用例（仅Single-Agent的47.5\%）获得了可比的质量指标。覆盖率效率比（CER）达到2.09\%/用例，是Single-Agent（1.13\%/用例）的\textbf{1.85倍}。这意味着本文方法生成的每个测试用例"质量密度"更高，更能抓住关键测试场景。
+\textbf{（3）测试用例精简高效。}结合测试压缩率与变更覆盖率可见，本文方法在显著削减回归执行规模的同时仍能维持较高的变更针对性；相对于基线方法以大套件换覆盖的策略，本文方法更侧重``少而精''的用例组织（详见第~\ref{ssec:expB_compression}节）。
 
 \textbf{（4）强大的缺陷检测能力。}Bug检测率达到90\%，显著优于所有基线方法（0\%）。这一优势来源于BugPatternAgent对常见缺陷模式的记忆和学习，使得系统能够有针对性地生成能够触发潜在Bug的测试用例。
 
@@ -1152,18 +700,16 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 \textbf{（6）灵活的模块化架构。}各Agent可独立配置和切换，可根据对效率与效果的偏好选择不同的模块配置。消融实验表明，LLM是基础能力（覆盖率贡献56.8\%），ImpactAnalysis是核心机制（覆盖率贡献21.2\%），TestRepair是质量保障（通过率贡献34.77\%）。
 
-\textbf{（7）良好的性价比。}综合效率指数（$\sqrt{CER \times TER}$）在utils模块上达到13.44，是Single-Agent（4.56）的\textbf{2.95倍}，Test4Py（1.45）的\textbf{9.27倍}。这表明本文方法在"投入产出比"这一关键维度上具有明显优势。
-
 \subsection{局限性分析}
 \label{ssec:limitation_analysis}
 
 \textbf{（1）依赖深度学习模型的质量。}系统核心依赖DeepSeek等大语言模型的代码生成能力，生成测试的质量受模型能力制约。消融实验显示，去掉LLM后覆盖率骤降56.8\%，新增函数覆盖率骤降80.8\%。这说明系统对LLM的依赖程度较高。
 
-\textbf{（2）复杂模块上的效率有待优化。}在typer.core模块上，Single-Agent的时间效率比（0.59）高于本文方法（0.41）。这说明在复杂模块上，多Agent协作的协调开销较大，未来需要优化Agent间的通信效率。
+\textbf{（2）端到端开销仍有优化空间。}多Agent流水线在复杂提交上需要多次模型调用与状态同步，协调开销会随变更规模与用例数量增长。未来可在任务并行、缓存复用与提示压缩等方面进一步优化。
 
 \textbf{（3）大变更场景下的覆盖率下降。}在3e37e01和5bea9cf两个大变更提交上，本文方法的变更覆盖率降至25\%-27\%。虽然Bug检测率仍保持80\%-100\%，但变更覆盖率的下降仍有改进空间。
 
-\textbf{（4）当前验证范围有限。}实验主要在typer项目的两个模块上进行，在复杂代码上的泛化能力仍有提升空间。未来需要扩展到更多项目、更多编程语言进行验证。
+\textbf{（4）当前验证范围有限。}实验主要在typer项目的\texttt{utils}、\texttt{core}与\texttt{completion}三个子模块上进行，在更复杂仓库上的泛化能力仍有提升空间。未来需要扩展到更多项目、更多编程语言进行验证。
 
 \textbf{（5）测试语义质量有待提高。}仍有约25\%的测试用例因语义问题无法通过。虽然TestRepair模块能将通过率从37.86\%提升至72.63\%，但仍有优化空间。
 
@@ -1172,16 +718,16 @@ Full System在所有指标上均优于任一单一模块的消融配置。去掉
 
 本章系统性评估了多智能体回归测试用例生成系统。主要工作总结如下：
 
-\textbf{（1）构建了完整的评价指标体系。}从测试覆盖率、测试质量、测试效率和测试选择效果四个维度定义了12项具体指标，并创新性地引入了覆盖率效率比（CER）和时间效率比（TER）两项衍生指标。
+\textbf{（1）构建了完整的评价指标体系。}从测试覆盖率、测试质量、测试效率和测试选择效果四个维度定义了多项核心指标，并在第~\ref{ssec:cer_ter_metrics}节给出了覆盖率效率比（CER）、时间效率比（TER）及综合效率指数等衍生指标定义，用于补充刻画生成效率与性价比。
 
-\textbf{（2）设计了层次化的对比实验。}实验A在typer.utils和typer.core两个模块上验证了核心优势，实验B在6个真实Git提交上验证了变更感知能力：
+\textbf{（2）对比实验与消融验证。}在6个真实Git提交上完成了变更感知测试对比，并从压缩率—覆盖率联合视角量化本文方法与基线的差异；同时通过消融实验量化了ImpactAnalysis、Retrieval、BugPattern、TestRepair、Feedback及LLM等模块的贡献度。
+
 \begin{itemize}
-    \item 实验A结论：在简单模块上以20.94秒获得88.89\%覆盖率，综合效率指数达13.44；在复杂模块上以更少的测试用例（38 vs. 80）获得可比的覆盖率，用例效率高出85\%
-    \item 实验B结论：变更感知测试场景下，Bug检测率达90\%（其他工具0\%），压缩率94.52\%，变更覆盖精准度是Single-Agent的1.64倍
+    \item \textbf{对比实验要点：}变更感知场景下平均Bug检测率约90\%（基线为0），平均测试压缩率约94.52\%，变更覆盖精准度优于Single-Agent等基线。
 \end{itemize}
 
 \textbf{（3）设计了系统的消融实验。}通过逐步移除各关键模块，量化分析了各模块的贡献度。贡献度排名为：LLM（56.8\%）> ImpactAnalysis（21.2\%）> TestRepair（34.77\%）> Retrieval（16.2\%）> BugPattern（11.05\%）> Feedback（30.06\%）。
 
-\textbf{（4）深入分析了实验结果。}从效率象限视角解读了各工具的定位：从"又快又好"（本文方法utils）到"以时换质"（Single-Agent），从"保守稳妥"（Test4Py）到"效率低下"（Pynguin/core）。明确指出了本文方法的核心价值——"精准测试"，即以最少的用例获得最大的变更覆盖和Bug检测效果。
+\textbf{（4）深入分析了实验结果。}围绕``少而精''的回归策略，讨论了变更覆盖与Bug检测之间的关系，以及压缩率、新增函数覆盖率等指标在不同规模提交上的表现差异，明确了本文方法在变更驱动场景下的定位与适用边界。
 
 实验结果表明，多Agent回归测试用例生成系统在面向代码变更的测试生成任务上具有显著优势。在保证较高覆盖率的同时，能够精准定位变更代码、高效生成针对性测试用例，并以\textbf{90\%的Bug检测率和94.52\%的测试压缩率}实现"少而精"的回归测试策略。这一"以质换量"的设计理念，使系统在测试效率与质量之间取得了良好的平衡。

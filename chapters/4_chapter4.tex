@@ -79,7 +79,9 @@
     \item FeedbackAgent：生成最终报告并更新全局状态
 \end{itemize}
 
-数据在各节点之间的传递通过 \texttt{WorkflowState} 实现。以变更理解阶段为例：\texttt{CodeChangeAgent} 读取原始 \texttt{diff}，输出变更图与变更分析字段并写入状态；\allowbreak
+数据在各节点之间的传递通过 \texttt{WorkflowState} 实现。
+
+以变更理解阶段为例：\texttt{CodeChangeAgent} 读取原始 \texttt{diff}，输出变更图与变更分析字段并写入状态；
 \texttt{ImpactAnalysisAgent} 再读取上述字段，在影响分析后将影响图与语义单元目录写入状态；\allowbreak
 后续节点依次读取并丰富相关字段，形成端到端的数据流闭环。
 
@@ -148,9 +150,9 @@
 \textit{注：上表所示阈值为实验口径/人工评审参考标准，非代码内硬编码门控开关。}
 
 为支持消融实验与方案对比，系统定义了多个可配置开关字段，包括
-\texttt{retrieval\_enabled}、\texttt{bug\_pattern\_enabled}、\texttt{test\_repair\_enabled}、\allowbreak
-\texttt{feedback\_enabled}、\texttt{impact\_analysis\_enabled} 等。
-这些开关的默认值由环境变量（如 \texttt{MUTIAGENT\_ENABLE\_*} 系列）给出，可在请求体中覆盖，以实现灵活的实验控制。
+\path{retrieval_enabled}、\path{bug_pattern_enabled}、\path{test_repair_enabled}、
+\path{feedback_enabled}、\path{impact_analysis_enabled} 等。
+这些开关的默认值由环境变量（如 \path{MUTIAGENT_ENABLE_*} 系列）给出，可在请求体中覆盖，以实现灵活的实验控制。
 
 \section{核心Agent模块设计}
 本系统采用流水线架构，将回归测试生成任务分解为多个阶段，通过12个Agent节点实现各阶段功能。各Agent通过读写共享的WorkflowState进行状态传递与协作。
@@ -167,7 +169,7 @@ CodeChangeAgent作为流水线的首个Agent，承担着解析代码变更并建
     \item \texttt{build\_change\_graph}方法将分析结果转化为结构化的变更图
 \end{enumerate}
 
-该Agent的输入状态字段为\texttt{repo\_path}和\texttt{diff}，输出状态字段包括\texttt{changed\_files}、\texttt{diff\_hunks}、\texttt{change\_analysis}和\texttt{change\_graph}。
+该Agent的输入状态字段为\texttt{repo\_path}和\allowbreak\texttt{diff}，输出状态字段包括\texttt{changed\_files}、\allowbreak\texttt{diff\_hunks}、\allowbreak\texttt{change\_analysis}和\allowbreak\texttt{change\_graph}。
 
 CodeChangeAgent的关键设计在于变更图的数据结构设计。变更图的节点类型包含文件节点、符号节点、种子节点和测试关注点节点四类，边上携带权重与关系类型标签。
 \subsubsection{ProjectProbeAgent（项目探测）}
@@ -266,7 +268,7 @@ TestRepairAgent的设计以可运行性与导入/语法修复为主目标，不�
 \subsubsection{ExecutionAgent（测试执行）}
 ExecutionAgent负责在正确配置的虚拟环境中执行测试用例，并收集结构化的执行结果。
 
-该Agent的核心处理流程首先确定Python解释器路径。Agent在.mutiagent/reports/目录下创建以时间戳命名的报告目录。测试执行通过子进程调用pytest完成，可选启用代码覆盖率采集功能。执行完成后，Agent解析生成的JUnit XML文件，提取测试结果摘要。
+该Agent的核心处理流程首先确定Python解释器路径。Agent在\path{.mutiagent/reports/}目录下创建以时间戳命名的报告目录。测试执行通过子进程调用pytest完成，可选启用代码覆盖率采集功能。执行完成后，Agent解析生成的JUnit XML文件，提取测试结果摘要。
 \subsection{评估反馈阶段}
 评估反馈阶段负责评估测试执行结果的质量，并生成改进建议。
 \subsubsection{EvaluationAgent（结果评估）}
@@ -482,7 +484,7 @@ Web工作台采用前后端分离架构实现。后端基于FastAPI框架构建R
 \centering
 \caption{系统核心接口设计}
 \label{tab:api-interfaces}
-\begin{tabular}{@{}lp{6cm}p{5cm}@{}}
+\begin{tabular}{@{}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{5.8cm}>{\raggedright\arraybackslash}p{4.4cm}@{}}
 \toprule
 接口路径 & 功能描述 & 适用场景 \\
 \midrule
